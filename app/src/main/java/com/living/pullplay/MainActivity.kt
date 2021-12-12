@@ -5,6 +5,8 @@ import android.graphics.Bitmap
 import android.os.Bundle
 import com.huawei.hms.hmsscankit.ScanUtil
 import com.huawei.hms.ml.scan.HmsBuildBitmapOption
+import com.living.pullplay.rec.tool.socket.HostTransTool
+import com.living.pullplay.rec.tool.socket.ScanResult
 import kotlinx.android.synthetic.main.activity_main.*
 import kotlin.system.exitProcess
 
@@ -17,7 +19,10 @@ class MainActivity : Activity() {
         sanCodeImg?.post {
             val width = sanCodeImg?.width ?: 0
             val height = sanCodeImg?.height ?: 0
-            getCreateScanCodeImg(width, height, "133234324")?.let { bitmap ->
+
+            val content = HostTransTool.obj2Str(ScanResult("192.168.1.1", 9999))
+
+            getCreateScanCodeImg(width, height, content)?.let { bitmap ->
                 sanCodeImg?.setImageBitmap(bitmap)
             }
         }

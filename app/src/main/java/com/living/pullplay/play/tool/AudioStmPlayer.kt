@@ -1,4 +1,4 @@
-package com.living.pullplay.play
+package com.living.pullplay.play.tool
 
 import android.media.AudioAttributes
 import android.media.AudioFormat
