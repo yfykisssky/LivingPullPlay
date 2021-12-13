@@ -1,0 +1,211 @@
+package com.living.pullplay.decoder
+
+import android.media.MediaCodec
+import android.media.MediaCodecInfo
+import android.media.MediaFormat
+import android.os.Handler
+import android.os.Looper
+import android.util.Log
+import android.view.Surface
+import com.living.pullplay.utils.CheckUtils
+import com.living.pullplay.utils.FrameType
+import com.living.pullplay.utils.RecLogUtils
+import java.util.ArrayList
+import java.util.concurrent.LinkedBlockingQueue
+
+class AudioDecoder {
+
+    companion object {
+        private const val MIME_TYPE = MediaFormat.MIMETYPE_AUDIO_AAC
+        private const val M_CONFIGURE_FLAG_DECODE = 0
+    }
+
+    private var bitRate = 0
+
+    private var queueAudioFrame: LinkedBlockingQueue<AudioFrame>? = null
+
+    private var codec: MediaCodec? = null
+    private var decodeInThread: Thread? = null
+    private var decodeOutThread: Thread? = null
+    private var isDecoding = false
+
+    interface DecodeDataCallBack {
+        fun onDataCallBack(bytes: ByteArray, timeStamp: Long)
+    }
+
+    private var deDecodeDataCallBack: DecodeDataCallBack? = null
+    fun setDecodeDataCallBack(deDecodeDataCallBack: DecodeDataCallBack?) {
+        this.deDecodeDataCallBack = deDecodeDataCallBack
+    }
+
+    fun updateDecodeSettings(
+        bitRate: Int
+    ) {
+        this.bitRate = bitRate
+    }
+
+    fun initDecoder(): Boolean {
+        try {
+            codec = MediaCodec.createDecoderByType(MIME_TYPE)
+            configEncoder()
+            return true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            //dataCallBackListener?.onLogTest(e.message ?: "")
+        }
+        return false
+    }
+
+    fun startDecode() {
+        queueAudioFrame = LinkedBlockingQueue<AudioFrame>()
+        beginDecode()
+    }
+
+    private fun beginDecode() {
+        codec?.start()
+        isDecoding = true
+        decodeInThread = Thread(DecodeInRunnable())
+        decodeInThread?.start()
+        decodeOutThread = Thread(DecodeOutRunnable())
+        decodeOutThread?.start()
+    }
+
+    private fun endDecode() {
+        isDecoding = false
+        // decodeInThread?.join()
+        decodeOutThread?.join()
+    }
+
+    fun stopDecode() {
+        endDecode()
+        releaseEncoder()
+    }
+
+    fun resetDecode() {
+        endDecode()
+        codec?.reset()
+        configEncoder()
+        beginDecode()
+    }
+
+    private fun getEncodeFormat(): MediaFormat {
+        val format = MediaFormat.createAudioFormat(
+            MIME_TYPE,
+            AudioConstants.SAMPLE_RATE,
+            AudioConstants.CHANNEL
+        )
+        format.setInteger(
+            MediaFormat.KEY_AAC_PROFILE,
+            MediaCodecInfo.CodecProfileLevel.AACObjectLC
+        )
+        format.setInteger(MediaFormat.KEY_BIT_RATE, bitRate)
+        return format
+    }
+
+    private fun configEncoder() {
+        try {
+            codec?.configure(getEncodeFormat(), null, null, 0)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            // dataCallBackListener?.onLogTest(e.message ?: "")
+        }
+    }
+
+    private fun releaseEncoder() {
+        codec?.stop()
+        codec?.release()
+    }
+
+    private var timeStamp = 0L
+
+    private inner class DecodeInRunnable : Runnable {
+
+        var isSpsDecode = false
+
+        override fun run() {
+
+            while (isDecoding) {
+
+                val inIndex = codec?.dequeueInputBuffer(0) ?: -1
+                if (inIndex >= 0) {
+
+                    queueAudioFrame?.take()?.let { frame ->
+                        frame.byteArray?.let { array ->
+
+/*                            if (FrameType.SPS_FRAME == CheckUtils.judgeBytesFrameKind(array)) {
+                                if (isSpsDecode) {
+                                    val collections = ArrayList<AudioFrame>()
+                                    queueVideoFrame?.drainTo(collections)
+                                    collections.add(0, frame)
+                                    queueVideoFrame?.clear()
+                                    queueVideoFrame?.addAll(collections)
+                                    timeStamp = System.currentTimeMillis()
+                                    Looper.prepare()
+                                    Handler().post {
+                                        resetDecode()
+                                    }
+                                    Looper.loop()
+
+                                    return
+                                } else {
+                                    isSpsDecode = true
+                                }
+                            }*/
+
+                            //填充数据
+                            val byteBuffer = codec?.getInputBuffer(inIndex)
+                            byteBuffer?.clear()
+                            byteBuffer?.put(array)
+                            codec?.queueInputBuffer(
+                                inIndex,
+                                0,
+                                array.size,
+                                frame.timestamp,
+                                0
+                            )
+
+                        }
+                    }
+                }
+            }
+
+        }
+    }
+
+    private inner class DecodeOutRunnable : Runnable {
+
+        private val vBufferInfo = MediaCodec.BufferInfo()
+        private var decodeStartTimeStamp = 0L
+
+        fun handlePts(): Long {
+            if (decodeStartTimeStamp == 0L) {
+                decodeStartTimeStamp = vBufferInfo.presentationTimeUs
+            }
+            val ptsNew = (vBufferInfo.presentationTimeUs - decodeStartTimeStamp) / 1000
+            RecLogUtils.logAudioTimeStamp(ptsNew)
+            return ptsNew
+        }
+
+        override fun run() {
+
+            while (isDecoding) {
+                //解码
+                var outIndex = codec?.dequeueOutputBuffer(vBufferInfo, 0) ?: -1
+                while (outIndex >= 0) {
+                    codec?.getOutputBuffer(outIndex)?.let { encodedData ->
+                        val dataToWrite = ByteArray(vBufferInfo.size)
+                        encodedData[dataToWrite, 0, vBufferInfo.size]
+                        deDecodeDataCallBack?.onDataCallBack(dataToWrite, handlePts())
+                    }
+                    codec?.releaseOutputBuffer(outIndex, false)
+                    outIndex = codec?.dequeueOutputBuffer(vBufferInfo, 0) ?: -1
+                }
+            }
+        }
+    }
+
+    fun onReceived(frame: AudioFrame) {
+        queueAudioFrame?.put(frame)
+    }
+
+}

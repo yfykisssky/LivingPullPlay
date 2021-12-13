@@ -4,11 +4,17 @@ import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioManager
 import android.media.AudioTrack
+import com.living.pullplay.utils.RecLogUtils
 import java.io.IOException
+import java.util.concurrent.LinkedBlockingQueue
 
 class AudioStmPlayer {
 
     private var audioTrack: AudioTrack? = null
+    private var playPCMThread: PlayPCMThread? = null
+    private var audioPcmQueue: LinkedBlockingQueue<ByteArray>? = null
+
+    private var isPlaying = false
 
     //使用stream模式
     //sampleRate 对应pcm音频的采样率
@@ -31,27 +37,51 @@ class AudioStmPlayer {
         )
     }
 
-    fun startPlay() {
-        try {
-            audioTrack?.play()
-        } catch (e: IOException) {
+    private inner class PlayPCMThread : Thread() {
+
+        override fun run() {
+            try {
+                audioTrack?.play()
+                if(audioTrack?.playState == AudioTrack.PLAYSTATE_PLAYING){
+                    while (isPlaying) {
+                        audioPcmQueue?.take()?.let { tempBuffer ->
+                            RecLogUtils.playPcm()
+                            audioTrack?.write(tempBuffer, 0, tempBuffer.size)
+                        }
+                    }
+                }else{
+
+                }
+            } catch (e: IOException) {
+            } finally {
+                try {
+                    audioTrack?.stop()
+                } catch (e: IOException) {
+                }
+                audioTrack?.release()
+
+                audioPcmQueue?.clear()
+                audioPcmQueue = null
+            }
         }
+
+    }
+
+    fun startPlay() {
+        isPlaying = true
+        audioPcmQueue = LinkedBlockingQueue<ByteArray>()
+        playPCMThread = PlayPCMThread()
+        playPCMThread?.start()
     }
 
     fun stopPlay() {
-        try {
-            audioTrack?.stop()
-        } catch (e: IOException) {
-        }
-        audioTrack?.release()
+        isPlaying = false
+        playPCMThread?.join()
         audioTrack = null
     }
 
     fun addAudioBytes(tempBuffer: ByteArray) {
-        try {
-            audioTrack?.write(tempBuffer, 0, tempBuffer.size)
-        } catch (e: IOException) {
-        }
+        audioPcmQueue?.put(tempBuffer)
     }
 
 }
