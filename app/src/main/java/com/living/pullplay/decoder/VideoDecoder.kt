@@ -4,15 +4,23 @@ import android.media.MediaCodec
 import android.media.MediaCodecInfo
 import android.media.MediaFormat
 import android.os.Handler
+import android.os.HandlerThread
 import android.os.Looper
+import android.os.Message
 import android.util.Log
 import android.view.Surface
 import com.living.pullplay.utils.CheckUtils
 import com.living.pullplay.utils.FrameType
+import com.living.pullplay.utils.RecLogUtils
+import java.lang.ref.WeakReference
 import java.util.ArrayList
 import java.util.concurrent.LinkedBlockingQueue
 
 class VideoDecoder {
+
+    companion object {
+        private const val MSG_RESET_DECODER = 1
+    }
 
     private var bitRate = 0
     private var maxFps = 0
@@ -26,6 +34,11 @@ class VideoDecoder {
     private var decodeOutThread: Thread? = null
     private var isDecoding = false
     private var outputSurface: Surface? = null
+
+    private var videoDecoderHandlerThread: HandlerThread? = null
+
+    @Volatile
+    private var mHandleHandler: HandleHandler? = null
 
     fun updateDecodeSettings(
         bitRate: Int,
@@ -58,7 +71,42 @@ class VideoDecoder {
         beginDecode()
     }
 
+    private class HandleHandler(looper: Looper, reference: VideoDecoder) :
+        Handler(looper) {
+
+        private val readerWeakReference = WeakReference(reference)
+
+        override fun handleMessage(msg: Message) {
+            super.handleMessage(msg)
+
+            readerWeakReference.get()?.let { reference ->
+                when (msg.what) {
+                    MSG_RESET_DECODER -> {
+                        reference.resetDecode()
+                    }
+                    else -> {
+                    }
+                }
+            }
+
+        }
+
+    }
+
+    private fun initHandler() {
+        videoDecoderHandlerThread = HandlerThread("VideoDecoderThread")
+        videoDecoderHandlerThread?.start()
+        mHandleHandler = videoDecoderHandlerThread?.looper?.let { HandleHandler(it, this) }
+    }
+
+    private fun releaseHandler() {
+        videoDecoderHandlerThread?.quit()
+    }
+
     private fun beginDecode() {
+
+        initHandler()
+
         codec?.start()
         isDecoding = true
         decodeInThread = Thread(DecodeInRunnable())
@@ -69,11 +117,12 @@ class VideoDecoder {
 
     private fun endDecode() {
         isDecoding = false
-        // decodeInThread?.join()
+        decodeInThread?.join()
         decodeOutThread?.join()
     }
 
     fun stopDecode() {
+        releaseHandler()
         endDecode()
         releaseEncoder()
     }
@@ -109,61 +158,65 @@ class VideoDecoder {
     }
 
     private fun releaseEncoder() {
-        codec?.stop()
+        try {
+            codec?.stop()
+        } catch (e: Exception) {
+        }
         codec?.release()
     }
 
-    private var timeStamp = 0L
-
     private inner class DecodeInRunnable : Runnable {
 
-        var isSpsDecode = false
+        var isSpsIsReceived = false
 
         override fun run() {
 
-            while (isDecoding) {
+            try {
+                while (isDecoding) {
 
-                val inIndex = codec?.dequeueInputBuffer(0) ?: -1
-                if (inIndex >= 0) {
+                    val inIndex = codec?.dequeueInputBuffer(0) ?: -1
+                    if (inIndex >= 0) {
 
-                    queueVideoFrame?.take()?.let { frame ->
-                        frame.byteArray?.let { array ->
+                        queueVideoFrame?.take()?.let { frame ->
+                            frame.byteArray?.let { array ->
 
-                            if (FrameType.SPS_FRAME == CheckUtils.judgeBytesFrameKind(array)) {
-                                if (isSpsDecode) {
-                                    val collections = ArrayList<VideoFrame>()
-                                    queueVideoFrame?.drainTo(collections)
-                                    collections.add(0, frame)
-                                    queueVideoFrame?.clear()
-                                    queueVideoFrame?.addAll(collections)
-                                    timeStamp = System.currentTimeMillis()
-                                    Looper.prepare()
-                                    Handler().post {
-                                        resetDecode()
+                                if (FrameType.SPS_FRAME == CheckUtils.judgeBytesFrameKind(array)) {
+                                    if (isSpsIsReceived) {
+                                        val collections = ArrayList<VideoFrame>()
+                                        queueVideoFrame?.drainTo(collections)
+                                        collections.add(0, frame)
+                                        queueVideoFrame?.clear()
+                                        queueVideoFrame?.addAll(collections)
+                                        mHandleHandler?.sendEmptyMessage(MSG_RESET_DECODER)
+
+                                        isDecoding = false
+                                    } else {
+                                        isSpsIsReceived = true
                                     }
-                                    Looper.loop()
-
-                                    return
-                                } else {
-                                    isSpsDecode = true
                                 }
+
+                                if (isDecoding) {
+                                    //填充数据
+                                    val byteBuffer = codec?.getInputBuffer(inIndex)
+                                    byteBuffer?.clear()
+                                    byteBuffer?.put(array)
+                                    codec?.queueInputBuffer(
+                                        inIndex,
+                                        0,
+                                        array.size,
+                                        frame.timestamp * 1000,
+                                        0
+                                    )
+                                }
+
                             }
-
-                            //填充数据
-                            val byteBuffer = codec?.getInputBuffer(inIndex)
-                            byteBuffer?.clear()
-                            byteBuffer?.put(array)
-                            codec?.queueInputBuffer(
-                                inIndex,
-                                0,
-                                array.size,
-                                frame.timestamp,
-                                0
-                            )
-
                         }
                     }
                 }
+            } catch (e: Exception) {
+
+            } finally {
+
             }
 
         }
@@ -171,30 +224,38 @@ class VideoDecoder {
 
     private inner class DecodeOutRunnable : Runnable {
 
+        private val vBufferInfo = MediaCodec.BufferInfo()
+        private var decodeStartTimeStamp = 0L
+
+        fun handlePts(): Long {
+            if (decodeStartTimeStamp == 0L) {
+                decodeStartTimeStamp = vBufferInfo.presentationTimeUs
+            }
+            val ptsNew = (vBufferInfo.presentationTimeUs - decodeStartTimeStamp) / 1000
+            RecLogUtils.logVideoTimeStamp(ptsNew)
+            return ptsNew
+        }
+
         override fun run() {
-            val info = MediaCodec.BufferInfo()
             while (isDecoding) {
                 //解码
-                var outIndex = codec?.dequeueOutputBuffer(info, 0) ?: -1
+                var outIndex = codec?.dequeueOutputBuffer(vBufferInfo, 0) ?: -1
                 while (outIndex >= 0) {
-                    codec?.releaseOutputBuffer(outIndex, info.size != 0)
-                    outIndex = codec?.dequeueOutputBuffer(info, 0) ?: -1
+                    handlePts()
+                    codec?.releaseOutputBuffer(outIndex, vBufferInfo.size != 0)
+                    outIndex = codec?.dequeueOutputBuffer(vBufferInfo, 0) ?: -1
                 }
-                /*    if (outIndex >= 0) {
-                        codec?.releaseOutputBuffer(outIndex, info.size != 0)
-                    } else {
-                        when (outIndex) {
-                            MediaCodec.INFO_TRY_AGAIN_LATER -> {
-                            }
-                            MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> {
-                                val newFormat = codec?.outputFormat
-                                val videoWidth = newFormat?.getInteger("width")
-                                val videoHeight = newFormat?.getInteger("height")
-                            }
-                            else -> {
-                            }
-                        }
-                    }*/
+                when (outIndex) {
+                    MediaCodec.INFO_TRY_AGAIN_LATER -> {
+                    }
+                    MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> {
+                        /*val newFormat = codec?.outputFormat
+                        val videoWidth = newFormat?.getInteger("width")
+                        val videoHeight = newFormat?.getInteger("height")*/
+                    }
+                    else -> {
+                    }
+                }
             }
         }
     }

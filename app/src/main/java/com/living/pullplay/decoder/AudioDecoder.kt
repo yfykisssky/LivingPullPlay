@@ -116,11 +116,7 @@ class AudioDecoder {
         codec?.release()
     }
 
-    private var timeStamp = 0L
-
     private inner class DecodeInRunnable : Runnable {
-
-        var isSpsDecode = false
 
         override fun run() {
 
@@ -132,26 +128,6 @@ class AudioDecoder {
                     queueAudioFrame?.take()?.let { frame ->
                         frame.byteArray?.let { array ->
 
-/*                            if (FrameType.SPS_FRAME == CheckUtils.judgeBytesFrameKind(array)) {
-                                if (isSpsDecode) {
-                                    val collections = ArrayList<AudioFrame>()
-                                    queueVideoFrame?.drainTo(collections)
-                                    collections.add(0, frame)
-                                    queueVideoFrame?.clear()
-                                    queueVideoFrame?.addAll(collections)
-                                    timeStamp = System.currentTimeMillis()
-                                    Looper.prepare()
-                                    Handler().post {
-                                        resetDecode()
-                                    }
-                                    Looper.loop()
-
-                                    return
-                                } else {
-                                    isSpsDecode = true
-                                }
-                            }*/
-
                             //填充数据
                             val byteBuffer = codec?.getInputBuffer(inIndex)
                             byteBuffer?.clear()
@@ -160,7 +136,7 @@ class AudioDecoder {
                                 inIndex,
                                 0,
                                 array.size,
-                                frame.timestamp,
+                                frame.timestamp * 1000,
                                 0
                             )
 
