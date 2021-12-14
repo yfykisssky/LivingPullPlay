@@ -44,6 +44,10 @@ class VideoDecoder {
     @Volatile
     private var mHandleHandler: HandleHandler? = null
 
+    fun isisDecoding(): Boolean {
+        return isDecoding
+    }
+
     fun setDecodeSettings(
         frameWidth: Int,
         frameHeight: Int

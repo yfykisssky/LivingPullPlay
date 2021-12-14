@@ -64,20 +64,14 @@ class AudioDecoder {
 
     private fun endDecode() {
         isDecoding = false
-        // decodeInThread?.join()
+        decodeInThread?.interrupt()
+        decodeInThread?.join()
         decodeOutThread?.join()
     }
 
     fun stopDecode() {
         endDecode()
         releaseEncoder()
-    }
-
-    fun resetDecode() {
-        endDecode()
-        codec?.reset()
-        configEncoder()
-        beginDecode()
     }
 
     private fun getEncodeFormat(): MediaFormat {
@@ -103,39 +97,43 @@ class AudioDecoder {
     }
 
     private fun releaseEncoder() {
-        codec?.stop()
+        try {
+            codec?.stop()
+        } catch (e: Exception) {
+        }
         codec?.release()
     }
 
     private inner class DecodeInRunnable : Runnable {
 
         override fun run() {
+            try {
+                while (isDecoding) {
 
-            while (isDecoding) {
+                    val inIndex = codec?.dequeueInputBuffer(0) ?: -1
+                    if (inIndex >= 0) {
 
-                val inIndex = codec?.dequeueInputBuffer(0) ?: -1
-                if (inIndex >= 0) {
+                        queueAudioFrame?.take()?.let { frame ->
+                            frame.byteArray?.let { array ->
 
-                    queueAudioFrame?.take()?.let { frame ->
-                        frame.byteArray?.let { array ->
+                                //填充数据
+                                val byteBuffer = codec?.getInputBuffer(inIndex)
+                                byteBuffer?.clear()
+                                byteBuffer?.put(array)
+                                codec?.queueInputBuffer(
+                                    inIndex,
+                                    0,
+                                    array.size,
+                                    frame.timestamp * 1000,
+                                    0
+                                )
 
-                            //填充数据
-                            val byteBuffer = codec?.getInputBuffer(inIndex)
-                            byteBuffer?.clear()
-                            byteBuffer?.put(array)
-                            codec?.queueInputBuffer(
-                                inIndex,
-                                0,
-                                array.size,
-                                frame.timestamp * 1000,
-                                0
-                            )
-
+                            }
                         }
                     }
                 }
+            } catch (e: Exception) {
             }
-
         }
     }
 

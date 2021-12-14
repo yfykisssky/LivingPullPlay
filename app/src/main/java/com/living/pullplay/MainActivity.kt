@@ -47,7 +47,7 @@ class MainActivity : Activity() {
             }
         })
         audioDecoder?.initDecoder()
-        //audioDecoder?.startDecode()
+        audioDecoder?.startDecode()
 
         audioStmPlayer?.initPlayer(
             AudioConstants.SAMPLE_RATE, AudioFormat.ENCODING_PCM_16BIT,
@@ -58,7 +58,10 @@ class MainActivity : Activity() {
         socRecServer?.setDataReceivedCallBack(object : SocketServer.OnDataReceivedCallBack {
 
             override fun onVideoDataRec(frame: VideoFrame) {
-                if (CheckUtils.judgeBytesFrameKind(frame.byteArray) == FrameType.SPS_FRAME) {
+                //初始化解码器
+                if (CheckUtils.judgeBytesFrameKind(frame.byteArray) == FrameType.SPS_FRAME
+                    && videoDecoder?.isisDecoding() == false
+                ) {
                     RecJavaUtils.getSizeFromSps(frame.byteArray)?.let { size ->
                         RecLogUtils.logWH(size.width, size.height)
                         beginVideoDecoding(size.width, size.height)
@@ -84,7 +87,7 @@ class MainActivity : Activity() {
                 runOnUiThread {
                     sanCodeImg?.visibility = View.VISIBLE
                 }
-                videoDecoder?.stopDecode()
+                stopDecoder()
             }
 
         })
@@ -102,6 +105,11 @@ class MainActivity : Activity() {
 
     }
 
+    private fun stopDecoder(){
+        videoDecoder?.stopDecode()
+        audioDecoder?.stopDecode()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -110,6 +118,7 @@ class MainActivity : Activity() {
 
         start?.setOnClickListener {
 
+            sanCodeImg?.visibility = View.VISIBLE
             sanCodeImg?.post {
                 val width = sanCodeImg?.width ?: 0
                 val height = sanCodeImg?.height ?: 0
@@ -130,7 +139,9 @@ class MainActivity : Activity() {
         }
 
         stop?.setOnClickListener {
-
+            socRecServer?.closeSocket()
+            stopDecoder()
+            sanCodeImg?.visibility = View.GONE
         }
 
         exit?.setOnClickListener {

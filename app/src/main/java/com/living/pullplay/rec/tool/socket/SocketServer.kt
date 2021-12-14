@@ -10,9 +10,12 @@ import java.net.ServerSocket
 class SocketServer {
 
     private var serverSocket: ServerSocket? = null
+    private var connectThread: ConnectThread? = null
+
     private var inPutStream: DataInputStream? = null
     private var isReading = false
     private var isListening = false
+    private var hasClientConnecting = false
 
     interface OnDataReceivedCallBack {
         fun onVideoDataRec(frame: VideoFrame)
@@ -43,37 +46,50 @@ class SocketServer {
                     while (isListening) {
                         try {
                             socket.accept()?.let { client ->
+                                if (hasClientConnecting) {
+                                    return
+                                }
+                                hasClientConnecting = true
                                 onConnectListener?.onConnected()
                                 isReading = true
                                 inPutStream = DataInputStream(client.getInputStream())
-                                while (isReading) {
+                                try {
+                                    while (isReading) {
 
-                                    val extraData = ByteArray(DataDecodeTool.EXTRA_DATA_LENGTH)
-                                    inPutStream?.readFully(extraData)
+                                        val extraData = ByteArray(DataDecodeTool.EXTRA_DATA_LENGTH)
+                                        inPutStream?.readFully(extraData)
 
-                                    DataDecodeTool.deExtraData(extraData).let { rec ->
+                                        DataDecodeTool.deExtraData(extraData).let { rec ->
 
-                                        val byteData = ByteArray(rec.first)
-                                        inPutStream?.readFully(byteData)
-                                        if (rec.second) {
-                                            val frame = VideoFrame()
-                                            frame.byteArray = byteData
-                                            frame.timestamp = rec.third
-                                            onDataReceivedCallBack?.onVideoDataRec(frame)
-                                        } else {
-                                            val frame = AudioFrame()
-                                            frame.byteArray = byteData
-                                            frame.timestamp = rec.third
-                                            onDataReceivedCallBack?.onAudioDataRec(frame)
+                                            val byteData = ByteArray(rec.first)
+                                            inPutStream?.readFully(byteData)
+                                            if (rec.second) {
+                                                val frame = VideoFrame()
+                                                frame.byteArray = byteData
+                                                frame.timestamp = rec.third
+                                                onDataReceivedCallBack?.onVideoDataRec(frame)
+                                            } else {
+                                                val frame = AudioFrame()
+                                                frame.byteArray = byteData
+                                                frame.timestamp = rec.third
+                                                onDataReceivedCallBack?.onAudioDataRec(frame)
+                                            }
                                         }
-                                    }
 
+                                    }
+                                } catch (e: Exception) {
+                                    RecLogUtils.log("Socket READ ERR " + e.localizedMessage)
+                                } finally {
+                                    inPutStream?.close()
                                 }
                             }
                         } catch (e: Exception) {
                             RecLogUtils.log("Socket ERR " + e.localizedMessage)
                         } finally {
-                            onConnectListener?.onDisConnected()
+                            hasClientConnecting = false
+                            if (isListening) {
+                                onConnectListener?.onDisConnected()
+                            }
                         }
                     }
                 }
@@ -85,12 +101,18 @@ class SocketServer {
 
     fun openSocket(port: Int) {
         isListening = true
-        ConnectThread(port).start()
+        connectThread = ConnectThread(port)
+        connectThread?.start()
     }
 
 
     fun closeSocket() {
+        isListening = false
+        isReading = false
+        connectThread?.interrupt()
         serverSocket?.close()
+        connectThread?.join()
+        connectThread = null
     }
 
 }
