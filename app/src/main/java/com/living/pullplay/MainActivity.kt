@@ -47,7 +47,7 @@ class MainActivity : Activity() {
             }
         })
         audioDecoder?.initDecoder()
-        audioDecoder?.startDecode()
+        //audioDecoder?.startDecode()
 
         audioStmPlayer?.initPlayer(
             AudioConstants.SAMPLE_RATE, AudioFormat.ENCODING_PCM_16BIT,
@@ -61,7 +61,7 @@ class MainActivity : Activity() {
                 if (CheckUtils.judgeBytesFrameKind(frame.byteArray) == FrameType.SPS_FRAME) {
                     RecJavaUtils.getSizeFromSps(frame.byteArray)?.let { size ->
                         RecLogUtils.logWH(size.width, size.height)
-                        resetVideoDecoder(size.width, size.height)
+                        beginVideoDecoding(size.width, size.height)
                     }
                 }
                 videoDecoder?.onReceived(frame)
@@ -90,7 +90,7 @@ class MainActivity : Activity() {
 
     }
 
-    private fun resetVideoDecoder(withFrame: Int, heightFrame: Int) {
+    private fun beginVideoDecoding(withFrame: Int, heightFrame: Int) {
 
         videoDecoder?.stopDecode()
         videoDecoder?.setDecodeSettings(withFrame, heightFrame)

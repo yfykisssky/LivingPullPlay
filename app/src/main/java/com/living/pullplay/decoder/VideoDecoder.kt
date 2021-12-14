@@ -13,11 +13,8 @@ import android.view.TextureView
 import com.living.pullplay.play.tool.video.gl.TextureVideoFrame
 import com.living.pullplay.play.tool.video.gl.ToSurfaceViewFrameRender
 import com.living.pullplay.play.tool.video.gl.VideoRender
-import com.living.pullplay.utils.CheckUtils
-import com.living.pullplay.utils.FrameType
 import com.living.pullplay.utils.RecLogUtils
 import java.lang.ref.WeakReference
-import java.util.ArrayList
 import java.util.concurrent.LinkedBlockingQueue
 
 class VideoDecoder {
@@ -29,16 +26,18 @@ class VideoDecoder {
     private var frameWidth = 0
     private var frameHeight = 0
 
+    @Volatile
     private var queueVideoFrame: LinkedBlockingQueue<VideoFrame>? = null
 
     private var codec: MediaCodec? = null
     private var decodeInThread: Thread? = null
     private var decodeOutThread: Thread? = null
+
     private var isDecoding = false
     var outputSurface: Surface? = null
 
-    private var videoDecoder = VideoRender()
-    private var toSurfaceFrameRender = ToSurfaceViewFrameRender()
+    private var videoRender: VideoRender? = null
+    private var toSurfaceFrameRender: ToSurfaceViewFrameRender? = null
 
     private var videoDecoderHandlerThread: HandlerThread? = null
 
@@ -54,18 +53,22 @@ class VideoDecoder {
     }
 
     fun setRenderView(textureView: TextureView) {
-        toSurfaceFrameRender.updateRenderTextureView(textureView)
+        if (toSurfaceFrameRender == null) {
+            toSurfaceFrameRender = ToSurfaceViewFrameRender()
+        }
+        toSurfaceFrameRender?.updateRenderTextureView(textureView)
     }
 
     fun initDecoder(): Boolean {
         try {
-            videoDecoder.setVideoRenderCallBack(object : VideoRender.VideoRenderCallBack {
+            videoRender = VideoRender()
+            videoRender?.setVideoRenderCallBack(object : VideoRender.VideoRenderCallBack {
                 override fun onDataCallBack(frame: TextureVideoFrame) {
-                    toSurfaceFrameRender.onRenderVideoFrame(frame)
+                    toSurfaceFrameRender?.onRenderVideoFrame(frame)
                 }
             })
-            videoDecoder.updateFrameSize(frameWidth,frameHeight)
-            outputSurface = videoDecoder.initRender()
+            videoRender?.updateFrameSize(frameWidth, frameHeight)
+            outputSurface = videoRender?.initRender()
             codec = MediaCodec.createDecoderByType(MediaFormat.MIMETYPE_VIDEO_AVC)
             configEncoder()
 
@@ -127,9 +130,17 @@ class VideoDecoder {
     }
 
     private fun endDecode() {
+
+        toSurfaceFrameRender?.stop()
+        toSurfaceFrameRender = null
+        videoRender?.releaseRender()
+        videoRender = null
+
         isDecoding = false
+        decodeInThread?.interrupt()
         decodeInThread?.join()
         decodeOutThread?.join()
+
     }
 
     fun stopDecode() {
@@ -207,7 +218,6 @@ class VideoDecoder {
             } finally {
 
             }
-
         }
     }
 
