@@ -6,7 +6,7 @@
     android:layout_height="match_parent"
     android:background="@color/black">
 
-    <SurfaceView
+    <TextureView
         android:layout_centerInParent="true"
         android:id="@+id/surfaceView"
         android:layout_width="match_parent"

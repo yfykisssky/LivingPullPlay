@@ -9,6 +9,10 @@ import android.os.Looper
 import android.os.Message
 import android.util.Log
 import android.view.Surface
+import android.view.TextureView
+import com.living.pullplay.play.tool.video.gl.TextureVideoFrame
+import com.living.pullplay.play.tool.video.gl.ToSurfaceViewFrameRender
+import com.living.pullplay.play.tool.video.gl.VideoRender
 import com.living.pullplay.utils.CheckUtils
 import com.living.pullplay.utils.FrameType
 import com.living.pullplay.utils.RecLogUtils
@@ -22,7 +26,7 @@ class VideoDecoder {
         private const val MSG_RESET_DECODER = 1
     }
 
-    private var frameWith = 0
+    private var frameWidth = 0
     private var frameHeight = 0
 
     private var queueVideoFrame: LinkedBlockingQueue<VideoFrame>? = null
@@ -31,7 +35,10 @@ class VideoDecoder {
     private var decodeInThread: Thread? = null
     private var decodeOutThread: Thread? = null
     private var isDecoding = false
-    private var outputSurface: Surface? = null
+    var outputSurface: Surface? = null
+
+    private var videoDecoder = VideoRender()
+    private var toSurfaceFrameRender = ToSurfaceViewFrameRender()
 
     private var videoDecoderHandlerThread: HandlerThread? = null
 
@@ -39,21 +46,29 @@ class VideoDecoder {
     private var mHandleHandler: HandleHandler? = null
 
     fun setDecodeSettings(
-        frameWith: Int,
+        frameWidth: Int,
         frameHeight: Int
     ) {
-        this.frameWith = frameWith
+        this.frameWidth = frameWidth
         this.frameHeight = frameHeight
     }
 
-    fun setDecodeSurface(outputSurface: Surface?) {
-        this.outputSurface = outputSurface
+    fun setRenderView(textureView: TextureView) {
+        toSurfaceFrameRender.updateRenderTextureView(textureView)
     }
 
     fun initDecoder(): Boolean {
         try {
+            videoDecoder.setVideoRenderCallBack(object : VideoRender.VideoRenderCallBack {
+                override fun onDataCallBack(frame: TextureVideoFrame) {
+                    toSurfaceFrameRender.onRenderVideoFrame(frame)
+                }
+            })
+            videoDecoder.updateFrameSize(frameWidth,frameHeight)
+            outputSurface = videoDecoder.initRender()
             codec = MediaCodec.createDecoderByType(MediaFormat.MIMETYPE_VIDEO_AVC)
             configEncoder()
+
             return true
         } catch (e: Exception) {
             e.printStackTrace()
@@ -137,7 +152,7 @@ class VideoDecoder {
             MediaFormat.KEY_COLOR_FORMAT,
             MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface
         )
-        format.setInteger(MediaFormat.KEY_WIDTH, frameWith)
+        format.setInteger(MediaFormat.KEY_WIDTH, frameWidth)
         format.setInteger(MediaFormat.KEY_HEIGHT, frameHeight)
         return format
     }

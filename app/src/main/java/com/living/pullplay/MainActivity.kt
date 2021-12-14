@@ -4,12 +4,13 @@ import android.app.Activity
 import android.graphics.Bitmap
 import android.media.AudioFormat
 import android.os.Bundle
+import android.os.Handler
 import android.view.SurfaceHolder
 import android.view.View
 import com.huawei.hms.hmsscankit.ScanUtil
 import com.huawei.hms.ml.scan.HmsBuildBitmapOption
 import com.living.pullplay.decoder.*
-import com.living.pullplay.play.tool.AudioStmPlayer
+import com.living.pullplay.play.tool.audio.AudioStmPlayer
 import com.living.pullplay.rec.tool.socket.HostTransTool
 import com.living.pullplay.rec.tool.socket.ScanResult
 import com.living.pullplay.rec.tool.socket.SocketServer
@@ -90,10 +91,14 @@ class MainActivity : Activity() {
     }
 
     private fun resetVideoDecoder(withFrame: Int, heightFrame: Int) {
+
         videoDecoder?.stopDecode()
         videoDecoder?.setDecodeSettings(withFrame, heightFrame)
+        videoDecoder?.setRenderView(surfaceView)
+
         videoDecoder?.initDecoder()
         videoDecoder?.startDecode()
+
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -101,23 +106,6 @@ class MainActivity : Activity() {
         setContentView(R.layout.activity_main)
 
         initTools()
-
-        surfaceView?.holder?.addCallback(object : SurfaceHolder.Callback {
-            override fun surfaceCreated(holder: SurfaceHolder) {
-                videoDecoder?.setDecodeSurface(
-                    holder.surface
-                )
-            }
-
-            override fun surfaceChanged(holder: SurfaceHolder, p1: Int, p2: Int, p3: Int) {
-
-            }
-
-            override fun surfaceDestroyed(p0: SurfaceHolder) {
-
-            }
-
-        })
 
         start?.setOnClickListener {
 
