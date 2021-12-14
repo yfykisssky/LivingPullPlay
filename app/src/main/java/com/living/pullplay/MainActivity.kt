@@ -13,18 +13,15 @@ import com.living.pullplay.play.tool.AudioStmPlayer
 import com.living.pullplay.rec.tool.socket.HostTransTool
 import com.living.pullplay.rec.tool.socket.ScanResult
 import com.living.pullplay.rec.tool.socket.SocketServer
-import com.living.pullplay.utils.SocketUtils
+import com.living.pullplay.utils.*
 import kotlinx.android.synthetic.main.activity_main.*
 import kotlin.system.exitProcess
 
 class MainActivity : Activity() {
 
     private var videoDecoder: VideoDecoder? = null
-    private var decodeVideoBitRate = 8000
-    private var decodeFps = 30
 
     private var audioDecoder: AudioDecoder? = null
-    private var decodeAudioBitRate = 128
 
     private var audioStmPlayer: AudioStmPlayer? = null
 
@@ -43,10 +40,6 @@ class MainActivity : Activity() {
 
         socRecServer?.openSocket(SocketUtils.LISTENING_PORT)
 
-        videoDecoder?.initDecoder()
-        videoDecoder?.startDecode()
-
-        audioDecoder?.updateDecodeSettings(decodeAudioBitRate)
         audioDecoder?.setDecodeDataCallBack(object : AudioDecoder.DecodeDataCallBack {
             override fun onDataCallBack(bytes: ByteArray, timeStamp: Long) {
                 audioStmPlayer?.addAudioBytes(bytes)
@@ -55,14 +48,21 @@ class MainActivity : Activity() {
         audioDecoder?.initDecoder()
         audioDecoder?.startDecode()
 
-
-        audioStmPlayer?.initPlayer(AudioConstants.SAMPLE_RATE, AudioFormat.ENCODING_PCM_16BIT,
-            AudioFormat.CHANNEL_IN_STEREO,AudioConstants.getSampleDataSize())
+        audioStmPlayer?.initPlayer(
+            AudioConstants.SAMPLE_RATE, AudioFormat.ENCODING_PCM_16BIT,
+            AudioFormat.CHANNEL_IN_STEREO, AudioConstants.getSampleDataSize()
+        )
         audioStmPlayer?.startPlay()
 
         socRecServer?.setDataReceivedCallBack(object : SocketServer.OnDataReceivedCallBack {
 
             override fun onVideoDataRec(frame: VideoFrame) {
+                if (CheckUtils.judgeBytesFrameKind(frame.byteArray) == FrameType.SPS_FRAME) {
+                    RecJavaUtils.getSizeFromSps(frame.byteArray)?.let { size ->
+                        RecLogUtils.logWH(size.width, size.height)
+                        resetVideoDecoder(size.width, size.height)
+                    }
+                }
                 videoDecoder?.onReceived(frame)
             }
 
@@ -89,6 +89,12 @@ class MainActivity : Activity() {
 
     }
 
+    private fun resetVideoDecoder(withFrame: Int, heightFrame: Int) {
+        videoDecoder?.stopDecode()
+        videoDecoder?.setDecodeSettings(withFrame, heightFrame)
+        videoDecoder?.initDecoder()
+        videoDecoder?.startDecode()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -98,16 +104,12 @@ class MainActivity : Activity() {
 
         surfaceView?.holder?.addCallback(object : SurfaceHolder.Callback {
             override fun surfaceCreated(holder: SurfaceHolder) {
-                videoDecoder?.updateDecodeSettings(
-                    decodeVideoBitRate,
-                    decodeFps,
-                    1280,
-                    720,
+                videoDecoder?.setDecodeSurface(
                     holder.surface
                 )
             }
 
-            override fun surfaceChanged(p0: SurfaceHolder, p1: Int, p2: Int, p3: Int) {
+            override fun surfaceChanged(holder: SurfaceHolder, p1: Int, p2: Int, p3: Int) {
 
             }
 

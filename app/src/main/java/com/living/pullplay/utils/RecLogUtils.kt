@@ -15,6 +15,13 @@ class RecLogUtils {
             Log.e(TAG, log ?: "null")
         }
 
+        fun logWH(with: Int, height: Int) {
+            if (!isDebug) {
+                return
+            }
+            Log.e(TAG, "with:$with,height:$height")
+        }
+
         private var lastPtsAudio = 0L
         private var lastPtsVideo = 0L
 

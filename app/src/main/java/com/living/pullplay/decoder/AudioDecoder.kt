@@ -20,8 +20,6 @@ class AudioDecoder {
         private const val M_CONFIGURE_FLAG_DECODE = 0
     }
 
-    private var bitRate = 0
-
     private var queueAudioFrame: LinkedBlockingQueue<AudioFrame>? = null
 
     private var codec: MediaCodec? = null
@@ -36,12 +34,6 @@ class AudioDecoder {
     private var deDecodeDataCallBack: DecodeDataCallBack? = null
     fun setDecodeDataCallBack(deDecodeDataCallBack: DecodeDataCallBack?) {
         this.deDecodeDataCallBack = deDecodeDataCallBack
-    }
-
-    fun updateDecodeSettings(
-        bitRate: Int
-    ) {
-        this.bitRate = bitRate
     }
 
     fun initDecoder(): Boolean {
@@ -98,7 +90,6 @@ class AudioDecoder {
             MediaFormat.KEY_AAC_PROFILE,
             MediaCodecInfo.CodecProfileLevel.AACObjectLC
         )
-        format.setInteger(MediaFormat.KEY_BIT_RATE, bitRate)
         return format
     }
 

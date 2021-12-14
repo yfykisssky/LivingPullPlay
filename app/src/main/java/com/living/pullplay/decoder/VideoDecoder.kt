@@ -22,8 +22,6 @@ class VideoDecoder {
         private const val MSG_RESET_DECODER = 1
     }
 
-    private var bitRate = 0
-    private var maxFps = 0
     private var frameWith = 0
     private var frameHeight = 0
 
@@ -40,17 +38,15 @@ class VideoDecoder {
     @Volatile
     private var mHandleHandler: HandleHandler? = null
 
-    fun updateDecodeSettings(
-        bitRate: Int,
-        maxFps: Int,
+    fun setDecodeSettings(
         frameWith: Int,
-        frameHeight: Int,
-        outputSurface: Surface?
+        frameHeight: Int
     ) {
-        this.bitRate = bitRate
-        this.maxFps = maxFps
         this.frameWith = frameWith
         this.frameHeight = frameHeight
+    }
+
+    fun setDecodeSurface(outputSurface: Surface?) {
         this.outputSurface = outputSurface
     }
 
@@ -137,8 +133,6 @@ class VideoDecoder {
     private fun getEncodeFormat(): MediaFormat {
         val format = MediaFormat()
         format.setString(MediaFormat.KEY_MIME, MediaFormat.MIMETYPE_VIDEO_AVC)
-        format.setInteger(MediaFormat.KEY_BIT_RATE, bitRate)
-        format.setInteger(MediaFormat.KEY_FRAME_RATE, maxFps)
         format.setInteger(
             MediaFormat.KEY_COLOR_FORMAT,
             MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface
@@ -167,8 +161,6 @@ class VideoDecoder {
 
     private inner class DecodeInRunnable : Runnable {
 
-        var isSpsIsReceived = false
-
         override fun run() {
 
             try {
@@ -180,34 +172,16 @@ class VideoDecoder {
                         queueVideoFrame?.take()?.let { frame ->
                             frame.byteArray?.let { array ->
 
-                                if (FrameType.SPS_FRAME == CheckUtils.judgeBytesFrameKind(array)) {
-                                    if (isSpsIsReceived) {
-                                        val collections = ArrayList<VideoFrame>()
-                                        queueVideoFrame?.drainTo(collections)
-                                        collections.add(0, frame)
-                                        queueVideoFrame?.clear()
-                                        queueVideoFrame?.addAll(collections)
-                                        mHandleHandler?.sendEmptyMessage(MSG_RESET_DECODER)
-
-                                        isDecoding = false
-                                    } else {
-                                        isSpsIsReceived = true
-                                    }
-                                }
-
-                                if (isDecoding) {
-                                    //填充数据
-                                    val byteBuffer = codec?.getInputBuffer(inIndex)
-                                    byteBuffer?.clear()
-                                    byteBuffer?.put(array)
-                                    codec?.queueInputBuffer(
-                                        inIndex,
-                                        0,
-                                        array.size,
-                                        frame.timestamp * 1000,
-                                        0
-                                    )
-                                }
+                                val byteBuffer = codec?.getInputBuffer(inIndex)
+                                byteBuffer?.clear()
+                                byteBuffer?.put(array)
+                                codec?.queueInputBuffer(
+                                    inIndex,
+                                    0,
+                                    array.size,
+                                    frame.timestamp * 1000,
+                                    0
+                                )
 
                             }
                         }
@@ -249,9 +223,6 @@ class VideoDecoder {
                     MediaCodec.INFO_TRY_AGAIN_LATER -> {
                     }
                     MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> {
-                        /*val newFormat = codec?.outputFormat
-                        val videoWidth = newFormat?.getInteger("width")
-                        val videoHeight = newFormat?.getInteger("height")*/
                     }
                     else -> {
                     }
