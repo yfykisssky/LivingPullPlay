@@ -88,6 +88,11 @@ public class ToSurfaceViewFrameRender extends CustomFrameRender {
         if (mRenderView != null) {
             mRenderView.setSurfaceTextureListener(null);
         }
+        mGLHandler.obtainMessage(MSG_CLEAR_DRAW_VIEWPORT).sendToTarget();
         super.stop();
     }
+
+
+
+
 }

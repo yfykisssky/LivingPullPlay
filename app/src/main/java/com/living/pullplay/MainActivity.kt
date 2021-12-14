@@ -84,6 +84,7 @@ class MainActivity : Activity() {
                 runOnUiThread {
                     sanCodeImg?.visibility = View.VISIBLE
                 }
+                videoDecoder?.stopDecode()
             }
 
         })

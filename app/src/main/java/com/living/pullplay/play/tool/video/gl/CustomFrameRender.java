@@ -51,6 +51,7 @@ public abstract class CustomFrameRender implements Handler.Callback, RenderFrame
     protected static final int MSG_RENDER = 2;
     protected static final int MSG_DESTROY = 3;
     protected static final int MSG_DESTROY_CONTEXT = 4;
+    protected static final int MSG_CLEAR_DRAW_VIEWPORT = 5;
 
     protected Size mSurfaceSize = new Size();
     private Size mLastInputSize = new Size();
@@ -90,11 +91,11 @@ public abstract class CustomFrameRender implements Handler.Callback, RenderFrame
 
     public CustomFrameRender() {
         mGLCubeBuffer = ByteBuffer.allocateDirect(OpenGlUtils.CUBE.length * 4)
-                .order(ByteOrder.nativeOrder()).asFloatBuffer();
+            .order(ByteOrder.nativeOrder()).asFloatBuffer();
         mGLCubeBuffer.put(OpenGlUtils.CUBE).position(0);
 
         mGLTextureBuffer = ByteBuffer.allocateDirect(OpenGlUtils.TEXTURE.length * 4)
-                .order(ByteOrder.nativeOrder()).asFloatBuffer();
+            .order(ByteOrder.nativeOrder()).asFloatBuffer();
         mGLTextureBuffer.put(OpenGlUtils.TEXTURE).position(0);
 
         mGLThread = new HandlerThread(TAG);
@@ -136,10 +137,10 @@ public abstract class CustomFrameRender implements Handler.Callback, RenderFrame
         }
 
         if (mLastInputSize.width != frame.getWidth() || mLastInputSize.height != frame.getHeight()
-                || mLastOutputSize.width != mSurfaceSize.width || mLastOutputSize.height != mSurfaceSize.height
-                || flipHorizontalLast != needFlipHorizontal) {
+            || mLastOutputSize.width != mSurfaceSize.width || mLastOutputSize.height != mSurfaceSize.height
+            || flipHorizontalLast != needFlipHorizontal) {
             Pair<float[], float[]> cubeAndTextureBuffer = OpenGlUtils.calcCubeAndTextureBuffer(useScaleType,
-                    useRotation, needFlipHorizontal, needFlipVertical, frame.getWidth(), frame.getHeight(), mSurfaceSize.width, mSurfaceSize.height);
+                useRotation, needFlipHorizontal, needFlipVertical, frame.getWidth(), frame.getHeight(), mSurfaceSize.width, mSurfaceSize.height);
             mGLCubeBuffer.clear();
             mGLCubeBuffer.put(cubeAndTextureBuffer.first);
             mGLTextureBuffer.clear();
@@ -161,11 +162,11 @@ public abstract class CustomFrameRender implements Handler.Callback, RenderFrame
 
         mEglCore.setPresentationTime(frame.getCaptureTimeStamp());
         mEglCore.swapBuffer();
-
     }
 
     @Synchronized
     protected void uninitGlComponent() {
+
         if (mNormalFilter != null) {
             mNormalFilter.destroy();
             mNormalFilter = null;
@@ -190,11 +191,25 @@ public abstract class CustomFrameRender implements Handler.Callback, RenderFrame
                 break;
             case MSG_DESTROY:
                 destroyInternal();
+                break;
             case MSG_DESTROY_CONTEXT:
                 uninitGlComponent();
                 break;
+            case MSG_CLEAR_DRAW_VIEWPORT:
+                clearDrawViewport();
+                break;
         }
         return false;
+    }
+
+    private void clearDrawViewport() {
+        if (mEglCore != null) {
+            mEglCore.makeCurrent();
+            GLES20.glViewport(0, 0, mSurfaceSize.width, mSurfaceSize.height);
+            GLES20.glClearColor(0, 0, 0, 0);
+            GLES20.glClear(GLES20.GL_DEPTH_BUFFER_BIT | GLES20.GL_COLOR_BUFFER_BIT);
+            mEglCore.swapBuffer();
+        }
     }
 
     public static class GLHandler extends Handler {
