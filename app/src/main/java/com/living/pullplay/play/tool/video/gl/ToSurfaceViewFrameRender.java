@@ -82,17 +82,16 @@ public class ToSurfaceViewFrameRender extends CustomFrameRender {
         });
     }
 
-    @Override
-    public void stop() {
+    //是否清屏
+    public void stop(boolean needClear) {
         sizeChangedListener = null;
         if (mRenderView != null) {
             mRenderView.setSurfaceTextureListener(null);
         }
-        mGLHandler.obtainMessage(MSG_CLEAR_DRAW_VIEWPORT).sendToTarget();
+        if(needClear){
+            mGLHandler.obtainMessage(MSG_CLEAR_DRAW_VIEWPORT).sendToTarget();
+        }
         super.stop();
     }
-
-
-
 
 }

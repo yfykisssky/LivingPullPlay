@@ -40,7 +40,6 @@ class VideoDecoder {
 
     private var videoRender: VideoRender? = null
     private var toSurfaceFrameRender: ToSurfaceViewFrameRender? = null
-    private var outputTextureView: TextureView? = null
 
     private var videoDecoderHandlerThread: HandlerThread? = null
 
@@ -60,7 +59,6 @@ class VideoDecoder {
     }
 
     fun setRenderView(textureView: TextureView?) {
-        outputTextureView = textureView
         if (toSurfaceFrameRender == null) {
             toSurfaceFrameRender = ToSurfaceViewFrameRender()
         }
@@ -138,12 +136,6 @@ class VideoDecoder {
     }
 
     private fun endDecode() {
-
-        toSurfaceFrameRender?.stop()
-        toSurfaceFrameRender = null
-        videoRender?.releaseRender()
-        videoRender = null
-
         isDecoding = false
         decodeInThread?.interrupt()
         decodeInThread?.join()
@@ -151,20 +143,24 @@ class VideoDecoder {
 
     }
 
+    private fun releaseRender(needClear: Boolean = true) {
+        toSurfaceFrameRender?.stop(needClear)
+        toSurfaceFrameRender = null
+        videoRender?.releaseRender()
+        videoRender = null
+    }
+
     fun stopDecode() {
         releaseHandler()
         endDecode()
+        releaseRender()
         releaseEncoder()
     }
 
     fun resetDecode() {
         endDecode()
         codec?.reset()
-
-        setDecodeSettings(frameWidth, frameHeight)
-        setRenderView(outputTextureView)
-
-        initDecoder()
+        configEncoder()
         beginDecode()
     }
 
@@ -185,7 +181,6 @@ class VideoDecoder {
             codec?.configure(getEncodeFormat(), outputSurface, null, 0)
         } catch (e: Exception) {
             e.printStackTrace()
-            // dataCallBackListener?.onLogTest(e.message ?: "")
         }
     }
 
