@@ -17,6 +17,11 @@ class SocketServer {
     private var isListening = false
     private var hasClientConnecting = false
 
+    companion object {
+        //ms
+        private const val READ_DATA_TIME_OUT = 500
+    }
+
     interface OnDataReceivedCallBack {
         fun onVideoDataRec(frame: VideoFrame)
         fun onAudioDataRec(frame: AudioFrame)
@@ -52,6 +57,7 @@ class SocketServer {
                                 hasClientConnecting = true
                                 onConnectListener?.onConnected()
                                 isReading = true
+                                client.soTimeout = READ_DATA_TIME_OUT
                                 inPutStream = DataInputStream(client.getInputStream())
                                 try {
                                     while (isReading) {
@@ -80,6 +86,7 @@ class SocketServer {
                                 } catch (e: Exception) {
                                     RecLogUtils.log("Socket READ ERR " + e.localizedMessage)
                                 } finally {
+                                    isReading = false
                                     inPutStream?.close()
                                 }
                             }
@@ -105,14 +112,18 @@ class SocketServer {
         connectThread?.start()
     }
 
-
     fun closeSocket() {
+
         isListening = false
+
         isReading = false
+        inPutStream?.close()
+
         connectThread?.interrupt()
         serverSocket?.close()
         connectThread?.join()
         connectThread = null
+
     }
 
 }
