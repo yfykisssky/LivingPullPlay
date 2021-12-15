@@ -46,7 +46,7 @@ class VideoDecoder {
     @Volatile
     private var mHandleHandler: HandleHandler? = null
 
-    fun isisDecoding(): Boolean {
+    fun isDecoding(): Boolean {
         return isDecoding
     }
 

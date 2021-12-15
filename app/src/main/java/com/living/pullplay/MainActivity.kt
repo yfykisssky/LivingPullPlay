@@ -28,6 +28,8 @@ class MainActivity : Activity() {
 
     private var socRecServer: SocketServer? = null
 
+    private var isStart = true
+
     private fun initTools() {
         videoDecoder = VideoDecoder()
         audioDecoder = AudioDecoder()
@@ -60,7 +62,7 @@ class MainActivity : Activity() {
             override fun onVideoDataRec(frame: VideoFrame) {
                 //初始化解码器
                 if (CheckUtils.judgeBytesFrameKind(frame.byteArray) == FrameType.SPS_FRAME
-                    && videoDecoder?.isisDecoding() == false
+                    && videoDecoder?.isDecoding() == false
                 ) {
                     RecJavaUtils.getSizeFromSps(frame.byteArray)?.let { size ->
                         RecLogUtils.logWH(size.width, size.height)
@@ -105,7 +107,7 @@ class MainActivity : Activity() {
 
     }
 
-    private fun stopDecoder(){
+    private fun stopDecoder() {
         videoDecoder?.stopDecode()
         audioDecoder?.stopDecode()
     }
@@ -116,38 +118,52 @@ class MainActivity : Activity() {
 
         initTools()
 
-        start?.setOnClickListener {
+        stateBnt?.setOnClickListener {
 
-            sanCodeImg?.visibility = View.VISIBLE
-            sanCodeImg?.post {
-                val width = sanCodeImg?.width ?: 0
-                val height = sanCodeImg?.height ?: 0
-
-                val content = HostTransTool.obj2Str(
-                    ScanResult(
-                        SocketUtils.getHostIp(this),
-                        SocketUtils.LISTENING_PORT
-                    )
-                )
-
-                getCreateScanCodeImg(width, height, content)?.let { bitmap ->
-                    sanCodeImg?.setImageBitmap(bitmap)
-                }
+            isStart = if (isStart) {
+                startListen()
+                stateBnt?.text = "Stop"
+                false
+            } else {
+                stopListen()
+                stateBnt?.text = "Start"
+                true
             }
 
-            beginListening()
-        }
-
-        stop?.setOnClickListener {
-            socRecServer?.closeSocket()
-            stopDecoder()
-            sanCodeImg?.visibility = View.GONE
         }
 
         exit?.setOnClickListener {
+            stopDecoder()
             exitProcess(0)
         }
 
+    }
+
+    private fun startListen() {
+        sanCodeImg?.visibility = View.VISIBLE
+        sanCodeImg?.post {
+            val width = sanCodeImg?.width ?: 0
+            val height = sanCodeImg?.height ?: 0
+
+            val content = HostTransTool.obj2Str(
+                ScanResult(
+                    SocketUtils.getHostIp(this),
+                    SocketUtils.LISTENING_PORT
+                )
+            )
+
+            getCreateScanCodeImg(width, height, content)?.let { bitmap ->
+                sanCodeImg?.setImageBitmap(bitmap)
+            }
+        }
+
+        beginListening()
+    }
+
+    private fun stopListen() {
+        socRecServer?.closeSocket()
+        stopDecoder()
+        sanCodeImg?.visibility = View.GONE
     }
 
     private fun getCreateScanCodeImg(width: Int, height: Int, content: String): Bitmap? {
