@@ -7,14 +7,16 @@ import android.os.Handler
 import android.os.HandlerThread
 import android.os.Looper
 import android.os.Message
-import android.util.Log
 import android.view.Surface
 import android.view.TextureView
 import com.living.pullplay.play.tool.video.gl.TextureVideoFrame
 import com.living.pullplay.play.tool.video.gl.ToSurfaceViewFrameRender
 import com.living.pullplay.play.tool.video.gl.VideoRender
+import com.living.pullplay.utils.CheckUtils
+import com.living.pullplay.utils.FrameType
 import com.living.pullplay.utils.RecLogUtils
 import java.lang.ref.WeakReference
+import java.util.*
 import java.util.concurrent.LinkedBlockingQueue
 
 class VideoDecoder {
@@ -38,6 +40,7 @@ class VideoDecoder {
 
     private var videoRender: VideoRender? = null
     private var toSurfaceFrameRender: ToSurfaceViewFrameRender? = null
+    private var outputTextureView: TextureView? = null
 
     private var videoDecoderHandlerThread: HandlerThread? = null
 
@@ -56,7 +59,8 @@ class VideoDecoder {
         this.frameHeight = frameHeight
     }
 
-    fun setRenderView(textureView: TextureView) {
+    fun setRenderView(textureView: TextureView?) {
+        outputTextureView = textureView
         if (toSurfaceFrameRender == null) {
             toSurfaceFrameRender = ToSurfaceViewFrameRender()
         }
@@ -156,7 +160,11 @@ class VideoDecoder {
     fun resetDecode() {
         endDecode()
         codec?.reset()
-        configEncoder()
+
+        setDecodeSettings(frameWidth, frameHeight)
+        setRenderView(outputTextureView)
+
+        initDecoder()
         beginDecode()
     }
 
@@ -191,6 +199,17 @@ class VideoDecoder {
 
     private inner class DecodeInRunnable : Runnable {
 
+        //重复收到sps,重置解码
+        private var isReceivedSps = false
+
+        private fun addDataBackToQueue(data: VideoFrame) {
+            val collections = ArrayList<VideoFrame>()
+            queueVideoFrame?.drainTo(collections)
+            collections.add(0, data)
+            queueVideoFrame?.clear()
+            queueVideoFrame?.addAll(collections)
+        }
+
         override fun run() {
 
             try {
@@ -202,16 +221,28 @@ class VideoDecoder {
                         queueVideoFrame?.take()?.let { frame ->
                             frame.byteArray?.let { array ->
 
-                                val byteBuffer = codec?.getInputBuffer(inIndex)
-                                byteBuffer?.clear()
-                                byteBuffer?.put(array)
-                                codec?.queueInputBuffer(
-                                    inIndex,
-                                    0,
-                                    array.size,
-                                    frame.timestamp * 1000,
-                                    0
-                                )
+                                if (FrameType.SPS_FRAME == CheckUtils.judgeBytesFrameKind(array)) {
+                                    if (isReceivedSps) {
+                                        addDataBackToQueue(frame)
+                                        mHandleHandler?.sendEmptyMessage(MSG_RESET_DECODER)
+                                        isDecoding = false
+                                    } else {
+                                        isReceivedSps = true
+                                    }
+                                }
+
+                                if (isDecoding) {
+                                    val byteBuffer = codec?.getInputBuffer(inIndex)
+                                    byteBuffer?.clear()
+                                    byteBuffer?.put(array)
+                                    codec?.queueInputBuffer(
+                                        inIndex,
+                                        0,
+                                        array.size,
+                                        frame.timestamp * 1000,
+                                        0
+                                    )
+                                }
 
                             }
                         }

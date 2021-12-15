@@ -3,14 +3,7 @@ package com.living.pullplay.decoder
 import android.media.MediaCodec
 import android.media.MediaCodecInfo
 import android.media.MediaFormat
-import android.os.Handler
-import android.os.Looper
-import android.util.Log
-import android.view.Surface
-import com.living.pullplay.utils.CheckUtils
-import com.living.pullplay.utils.FrameType
 import com.living.pullplay.utils.RecLogUtils
-import java.util.ArrayList
 import java.util.concurrent.LinkedBlockingQueue
 
 class AudioDecoder {
