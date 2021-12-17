@@ -67,19 +67,22 @@ class SocketServer {
 
                                         DataDecodeTool.deExtraData(extraData).let { rec ->
 
-                                            val byteData = ByteArray(rec.first)
-                                            inPutStream?.readFully(byteData)
-                                            if (rec.second) {
-                                                val frame = VideoFrame()
-                                                frame.byteArray = byteData
-                                                frame.timestamp = rec.third
-                                                onDataReceivedCallBack?.onVideoDataRec(frame)
-                                            } else {
-                                                val frame = AudioFrame()
-                                                frame.byteArray = byteData
-                                                frame.timestamp = rec.third
-                                                onDataReceivedCallBack?.onAudioDataRec(frame)
+                                            if (!rec.isSocketAck) {
+                                                val byteData = ByteArray(rec.size)
+                                                inPutStream?.readFully(byteData)
+                                                if (rec.type) {
+                                                    val frame = VideoFrame()
+                                                    frame.byteArray = byteData
+                                                    frame.timestamp = rec.timeStamp
+                                                    onDataReceivedCallBack?.onVideoDataRec(frame)
+                                                } else {
+                                                    val frame = AudioFrame()
+                                                    frame.byteArray = byteData
+                                                    frame.timestamp = rec.timeStamp
+                                                    onDataReceivedCallBack?.onAudioDataRec(frame)
+                                                }
                                             }
+
                                         }
 
                                     }
