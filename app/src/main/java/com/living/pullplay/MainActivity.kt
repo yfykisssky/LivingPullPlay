@@ -4,12 +4,9 @@ import android.app.Activity
 import android.graphics.Bitmap
 import android.media.AudioFormat
 import android.os.Bundle
-import android.os.Handler
-import android.view.SurfaceHolder
 import android.view.View
 import com.huawei.hms.hmsscankit.ScanUtil
 import com.huawei.hms.ml.scan.HmsBuildBitmapOption
-import com.living.faad2.TestN
 import com.living.pullplay.decoder.*
 import com.living.pullplay.play.tool.audio.AudioStmPlayer
 import com.living.pullplay.rec.tool.socket.HostTransTool
@@ -23,7 +20,7 @@ class MainActivity : Activity() {
 
     private var videoDecoder: VideoDecoder? = null
 
-    private var audioDecoder: AudioDecoder? = null
+    private var audioDecoder: AudioSoftDecoder? = null
 
     private var audioStmPlayer: AudioStmPlayer? = null
 
@@ -33,7 +30,7 @@ class MainActivity : Activity() {
 
     private fun initTools() {
         videoDecoder = VideoDecoder()
-        audioDecoder = AudioDecoder()
+        audioDecoder = AudioSoftDecoder()
 
         socRecServer = SocketServer()
 
@@ -44,7 +41,7 @@ class MainActivity : Activity() {
 
         socRecServer?.openSocket(SocketUtils.LISTENING_PORT)
 
-        audioDecoder?.setDecodeDataCallBack(object : AudioDecoder.DecodeDataCallBack {
+        audioDecoder?.setDecodeDataCallBack(object : AudioSoftDecoder.DecodeDataCallBack {
             override fun onDataCallBack(bytes: ByteArray, timeStamp: Long) {
                 audioStmPlayer?.addAudioBytes(bytes)
             }
@@ -116,8 +113,6 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-
-        TestN().test()
 
         initTools()
 
