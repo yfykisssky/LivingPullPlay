@@ -9,6 +9,7 @@ import android.view.SurfaceHolder
 import android.view.View
 import com.huawei.hms.hmsscankit.ScanUtil
 import com.huawei.hms.ml.scan.HmsBuildBitmapOption
+import com.living.faad2.TestN
 import com.living.pullplay.decoder.*
 import com.living.pullplay.play.tool.audio.AudioStmPlayer
 import com.living.pullplay.rec.tool.socket.HostTransTool
@@ -115,6 +116,8 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+
+        TestN().test()
 
         initTools()
 

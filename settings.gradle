@@ -9,3 +9,4 @@ dependencyResolutionManagement {
 }
 rootProject.name = "LivingPullPlay"
 include ':app'
+include ':faad2'
