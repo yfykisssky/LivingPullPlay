@@ -2,7 +2,6 @@
 
 #include "acctopcm.h"
 #include "acctopcm.cpp"
-#include <android\log.h>
 #include <jni.h>
 
 unsigned char *as_unsigned_char_array(JNIEnv *env, jbyteArray array) {

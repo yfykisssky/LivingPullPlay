@@ -7,14 +7,15 @@ plugins {
 }
 
 android {
-    compileSdk 30
+
+    compileSdk rootProject.ext.compileSdkVersion
 
     defaultConfig {
         applicationId "com.living.pullplay"
-        minSdk 21
-        targetSdk 30
-        versionCode 1
-        versionName "1.0"
+        minSdk rootProject.ext.minSdkVersion
+        targetSdk rootProject.ext.targetSdkVersion
+        versionCode rootProject.ext.versionCode
+        versionName rootProject.ext.versionName
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }

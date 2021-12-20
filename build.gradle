@@ -6,7 +6,7 @@ buildscript {
         maven {url 'https://developer.huawei.com/repo/'}
     }
     dependencies {
-        classpath "com.android.tools.build:gradle:7.0.0"
+        classpath "com.android.tools.build:gradle:7.0.4"
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:1.5.31"
 
         classpath 'com.huawei.agconnect:agcp:1.5.2.300'
@@ -17,4 +17,12 @@ buildscript {
 
 task clean(type: Delete) {
     delete rootProject.buildDir
+}
+ext {
+    minSdkVersion = 21
+    targetSdkVersion = 30
+    compileSdkVersion = 30
+
+    versionCode = 1
+    versionName = '1.0.0'
 }
