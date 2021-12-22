@@ -76,8 +76,6 @@ class AudioSoftDecoder {
 
     private inner class DecodeInRunnable : Runnable {
 
-        val pcmArraySize = AudioConstants.getSampleDataSize()
-
         override fun run() {
             try {
                 while (isDecoding) {
@@ -85,8 +83,7 @@ class AudioSoftDecoder {
                     queueAudioFrame?.take()?.let { frame ->
                         frame.byteArray?.let { array ->
 
-                            //todo:
-                            accFaad2DecodeTool?.convertToPcm(array, 4096)?.let { pcmData ->
+                            accFaad2DecodeTool?.convertToPcm(array)?.let { pcmData ->
                                 deDecodeDataCallBack?.onDataCallBack(pcmData, frame.timestamp)
                             }
 
@@ -97,6 +94,7 @@ class AudioSoftDecoder {
             } catch (e: Exception) {
             }
         }
+
     }
 
     fun onReceived(frame: AudioFrame) {

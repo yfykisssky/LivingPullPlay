@@ -15,8 +15,8 @@ class AccFaad2DecodeTool {
         AccFaad2NativeJni.stopFaad2Engine()
     }
 
-    fun convertToPcm(aacBytes: ByteArray, pcmSizes: Int): ByteArray? {
-        return AccFaad2NativeJni.convertToPcm(aacBytes, pcmSizes)
+    fun convertToPcm(aacBytes: ByteArray): ByteArray? {
+        return AccFaad2NativeJni.convertToPcm(aacBytes)
     }
 
 }

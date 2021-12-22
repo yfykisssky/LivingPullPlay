@@ -17,7 +17,6 @@ int unInitDecoder();
 //转换
 int convertToPcm(unsigned char *bufferAAC,
                  size_t buf_sizeAAC,
-                 unsigned char *bufferPCM,
-                 size_t buf_sizePCM);
+                 unsigned char *bufferPCM);
 
 #endif //LIVINGPULLPLAY_AACTOPCM_H

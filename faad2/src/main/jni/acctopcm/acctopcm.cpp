@@ -2,6 +2,8 @@
 #include <stdio.h>
 #include <memory.h>
 #include <android/log.h>
+#include "tools.h"
+#include "tools.c"
 
 NeAACDecHandle decoder;
 NeAACDecFrameInfo frame_info;
@@ -41,8 +43,7 @@ int unInitDecoder() {
 //转换
 int convertToPcm(unsigned char *bufferAAC,
                  size_t buf_sizeAAC,
-                 unsigned char *bufferPCM,
-                 size_t buf_sizePCM) {
+                 unsigned char *bufferOutPcm) {
     unsigned char *pcm_data = NULL;
 
     if (!decoderIsInit) {
@@ -53,13 +54,15 @@ int convertToPcm(unsigned char *bufferAAC,
     pcm_data = (unsigned char *) NeAACDecDecode(decoder, &frame_info, bufferAAC, buf_sizeAAC);
 
     if (frame_info.error > 0) {
-        return -1;
-    } else if (pcm_data && frame_info.samples > 0) {
-        buf_sizePCM = frame_info.samples * frame_info.channels;
-        memcpy(bufferPCM, pcm_data, buf_sizePCM);
+        LOGE("ERROR:%d", frame_info.error);
         return 0;
+    } else if (pcm_data && frame_info.samples > 0) {
+        //PCMBufferSize = 采样率*采样时间*采样位深/8*通道数
+        int buf_sizePCM = frame_info.samples * frame_info.channels;
+        memcpy(bufferOutPcm, pcm_data, buf_sizePCM);
+        return buf_sizePCM;
     }
-    return -1;
+    return 0;
 
 }
 

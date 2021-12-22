@@ -10,6 +10,6 @@ class AccFaad2NativeJni {
 
     public native static void stopFaad2Engine();
 
-    public native static byte[] convertToPcm(byte[] aacBytes,int pcmSize);
+    public native static byte[] convertToPcm(byte[] aacBytes);
 
 }
