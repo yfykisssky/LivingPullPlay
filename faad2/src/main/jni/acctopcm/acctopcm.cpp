@@ -1,6 +1,7 @@
 #include "acctopcm.h"
 #include <stdio.h>
 #include <memory.h>
+//部分机型这个头文件debug运行会异常
 #include <android/log.h>
 #include "tools.h"
 #include "tools.c"
@@ -54,7 +55,7 @@ int convertToPcm(unsigned char *bufferAAC,
     pcm_data = (unsigned char *) NeAACDecDecode(decoder, &frame_info, bufferAAC, buf_sizeAAC);
 
     if (frame_info.error > 0) {
-        LOGE("ERROR:%d", frame_info.error);
+        LOGE("ERROR:%s", NeAACDecGetErrorMessage(frame_info.error));
         return 0;
     } else if (pcm_data && frame_info.samples > 0) {
         //PCMBufferSize = 采样率*采样时间*采样位深/8*通道数
