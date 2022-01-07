@@ -8,6 +8,13 @@ class RecLogUtils {
 
         private const val isDebug = true
 
+        fun outLog(tag: String?, log: String?) {
+            if (!isDebug) {
+                return
+            }
+            Log.e(tag, log ?: "null")
+        }
+
         fun log(log: String?) {
             if (!isDebug) {
                 return

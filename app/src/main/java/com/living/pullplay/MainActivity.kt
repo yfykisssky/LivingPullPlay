@@ -59,7 +59,7 @@ class MainActivity : Activity() {
 
             override fun onVideoDataRec(frame: VideoFrame) {
                 //初始化解码器
-                if (CheckUtils.judgeBytesFrameKind(frame.byteArray) == FrameType.SPS_FRAME
+                if (CheckUtils.checkBytesFrameKind(frame.byteArray) == FrameType.SPS_FRAME
                     && videoDecoder?.isDecoding() == false
                 ) {
                     RecJavaUtils.getSizeFromSps(frame.byteArray)?.let { size ->

@@ -51,8 +51,8 @@ class VideoDecoder {
     }
 
     fun setDecodeSettings(
-        frameWidth: Int,
-        frameHeight: Int
+            frameWidth: Int,
+            frameHeight: Int
     ) {
         this.frameWidth = frameWidth
         this.frameHeight = frameHeight
@@ -92,7 +92,7 @@ class VideoDecoder {
     }
 
     private class HandleHandler(looper: Looper, reference: VideoDecoder) :
-        Handler(looper) {
+            Handler(looper) {
 
         private val readerWeakReference = WeakReference(reference)
 
@@ -168,8 +168,8 @@ class VideoDecoder {
         val format = MediaFormat()
         format.setString(MediaFormat.KEY_MIME, MediaFormat.MIMETYPE_VIDEO_AVC)
         format.setInteger(
-            MediaFormat.KEY_COLOR_FORMAT,
-            MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface
+                MediaFormat.KEY_COLOR_FORMAT,
+                MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface
         )
         format.setInteger(MediaFormat.KEY_WIDTH, frameWidth)
         format.setInteger(MediaFormat.KEY_HEIGHT, frameHeight)
@@ -216,7 +216,7 @@ class VideoDecoder {
                         queueVideoFrame?.take()?.let { frame ->
                             frame.byteArray?.let { array ->
 
-                                if (FrameType.SPS_FRAME == CheckUtils.judgeBytesFrameKind(array)) {
+                                if (FrameType.SPS_FRAME == CheckUtils.checkBytesFrameKind(array, true)) {
                                     if (isReceivedSps) {
                                         addDataBackToQueue(frame)
                                         mHandleHandler?.sendEmptyMessage(MSG_RESET_DECODER)
@@ -231,11 +231,11 @@ class VideoDecoder {
                                     byteBuffer?.clear()
                                     byteBuffer?.put(array)
                                     codec?.queueInputBuffer(
-                                        inIndex,
-                                        0,
-                                        array.size,
-                                        frame.timestamp * 1000,
-                                        0
+                                            inIndex,
+                                            0,
+                                            array.size,
+                                            frame.timestamp * 1000,
+                                            0
                                     )
                                 }
 
