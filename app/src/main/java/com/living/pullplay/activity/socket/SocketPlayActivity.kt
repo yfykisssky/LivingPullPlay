@@ -1,4 +1,4 @@
-package com.living.pullplay.activity
+package com.living.pullplay.activity.socket
 
 import android.graphics.Bitmap
 import android.os.Bundle

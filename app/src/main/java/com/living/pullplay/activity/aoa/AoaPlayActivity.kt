@@ -1,4 +1,4 @@
-package com.living.pullplay.activity
+package com.living.pullplay.activity.aoa
 
 import android.os.Bundle
 import com.living.pullplay.R
