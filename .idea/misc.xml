@@ -4,7 +4,9 @@
     <option name="filePathToZoomLevelMap">
       <map>
         <entry key="..\:/ProgramProjects/Android/LivingPullPlay/app/src/main/res/layout/activity_main.xml" value="0.2234375" />
+        <entry key="app/src/main/res/layout/activity_aoa.xml" value="0.23854166666666668" />
         <entry key="app/src/main/res/layout/activity_main.xml" value="0.21354166666666666" />
+        <entry key="app/src/main/res/layout/activity_socket.xml" value="0.23854166666666668" />
       </map>
     </option>
   </component>

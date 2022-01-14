@@ -4,11 +4,23 @@
     android:layout_height="match_parent"
     android:background="@color/black">
 
+    <TextureView
+        android:layout_centerInParent="true"
+        android:id="@+id/surfaceView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
     <LinearLayout
         android:layout_width="150dp"
         android:layout_height="wrap_content"
-        android:layout_centerInParent="true"
         android:orientation="vertical">
+
+        <Button
+            android:id="@+id/checkBnt"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:layout_margin="5dp"
+            android:text="Check" />
 
         <Button
             android:id="@+id/stateBnt"
@@ -24,5 +36,11 @@
             android:layout_margin="5dp"
             android:text="Exit" />
     </LinearLayout>
+
+    <ImageView
+        android:id="@+id/aoaState"
+        android:layout_width="300dp"
+        android:layout_height="300dp"
+        android:layout_centerInParent="true" />
 
 </RelativeLayout>

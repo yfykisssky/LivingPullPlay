@@ -6,6 +6,8 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.hardware.usb.*
+import com.living.pullplay.decoder.AudioFrame
+import com.living.pullplay.decoder.VideoFrame
 
 class UsbHostTool {
 
@@ -54,7 +56,18 @@ class UsbHostTool {
 
     interface UsbConnectListener {
         fun onConnectStartError()
-        fun onDataReceive(bytes: ByteArray)
+        fun onConnected()
+        fun onDisConnected()
+    }
+
+    interface OnDataReceivedCallBack {
+        fun onVideoDataRec(frame: VideoFrame)
+        fun onAudioDataRec(frame: AudioFrame)
+    }
+
+    private var onDataReceivedCallBack: OnDataReceivedCallBack? = null
+    fun setDataReceivedCallBack(onDataReceivedCallBack: OnDataReceivedCallBack?) {
+        this.onDataReceivedCallBack = onDataReceivedCallBack
     }
 
     fun initTool(con: Context?) {
@@ -292,6 +305,7 @@ class UsbHostTool {
     private inner class ReadDataRunnable
     constructor(private val conAoa: UsbDeviceConnection?) : Runnable {
 
+        //bulk transfer buffer size limited to 16K (16384)
         private val buff = ByteArray(BUFFER_SIZE_IN_BYTES)
 
         override fun run() {
@@ -306,7 +320,7 @@ class UsbHostTool {
                         USB_TIMEOUT_IN_MS
                     ) ?: -1
                     if (ret > 0) {
-                        usbConnectListener?.onDataReceive(buff)
+
                     }
                 }
 
@@ -320,11 +334,14 @@ class UsbHostTool {
     private inner class WriteDataRunnable
     constructor(private val conAoa: UsbDeviceConnection?) : Runnable {
 
+        //bulk transfer buffer size limited to 16K (16384)
+        val sendBuff = ByteArray(1)
+
         override fun run() {
 
             try {
                 while (isConnecting) {
-                    val sendBuff = ByteArray(100)
+
                     val ret = conAoa?.bulkTransfer(
                         endpointOut,
                         sendBuff,
