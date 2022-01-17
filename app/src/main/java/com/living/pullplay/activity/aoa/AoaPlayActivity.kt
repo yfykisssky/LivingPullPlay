@@ -1,49 +1,54 @@
 package com.living.pullplay.activity.aoa
 
 import android.os.Bundle
+import android.view.View
 import com.living.pullplay.R
+import com.living.pullplay.activity.aoa.view.DeviceListAdapter
 import com.living.pullplay.activity.base.BasePlayActivity
 import com.living.pullplay.decoder.AudioFrame
 import com.living.pullplay.decoder.VideoFrame
 import com.living.pullplay.rec.tool.usbaoa.UsbHostTool
+import com.living.pullplay.utils.ToolUtils
 import kotlinx.android.synthetic.main.activity_aoa_play.*
 import kotlin.system.exitProcess
 
 class AoaPlayActivity : BasePlayActivity() {
 
     private var usbHostTool: UsbHostTool? = null
+    private var deviceListAdapter: DeviceListAdapter? = null
 
-    private var isStart = true
+    private fun initView() {
+        deviceListAdapter = DeviceListAdapter(this)
+        deviceListAdapter?.setOnItemConnListener(
+            object : DeviceListAdapter.OnItemConnListener {
+                override fun onItemConn(pid: String, vid: String) {
+                    startConnect(pid, vid)
+                }
+            })
+        deviceLists?.adapter = deviceListAdapter
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_aoa_play)
 
+        initView()
         initTools()
 
         usbHostTool = UsbHostTool()
         usbHostTool?.initTool(this)
 
         checkBnt?.setOnClickListener {
-            var showText=""
-            usbHostTool?.getNowConPidVidLists()?.forEach {
-                showText
+            val mapDevices = usbHostTool?.getNowConPidVidLists()
+            ToolUtils.tranMapToList(mapDevices).let { devices ->
+                deviceLists?.visibility = View.VISIBLE
+                deviceListAdapter?.updateData(devices)
+                deviceListAdapter?.notifyDataSetChanged()
             }
         }
 
-
-        stateBnt?.setOnClickListener {
-
-            isStart = if (isStart) {
-                startConnect()
-                stateBnt?.text = "Stop"
-                false
-            } else {
-                stopConnect()
-                stateBnt?.text = "Start"
-                true
-            }
-
+        stopBnt?.setOnClickListener {
+            stopConnect()
         }
 
         exit?.setOnClickListener {
@@ -53,7 +58,7 @@ class AoaPlayActivity : BasePlayActivity() {
 
     }
 
-    private fun startConnect(conDevStr: String) {
+    private fun startConnect(pid: String, vid: String) {
 
         preparedPlay()
 
@@ -74,26 +79,31 @@ class AoaPlayActivity : BasePlayActivity() {
 
             }
 
+            override fun onIsOneMoreDeviceInterface() {
+
+            }
+
             override fun onConnected() {
                 runOnUiThread {
-                    //sanCodeImg?.visibility = View.GONE
+                    deviceLists?.visibility = View.GONE
                 }
             }
 
             override fun onDisConnected() {
                 runOnUiThread {
-                    //sanCodeImg?.visibility = View.VISIBLE
+
                 }
                 stopDecoder()
             }
 
         })
 
-        usbHostTool?.connectToAoaDevice(conDevStr)
+        usbHostTool?.connectToAoaDevice(pid, vid)
     }
 
     private fun stopConnect() {
         stopDecoder()
+        usbHostTool?.stopConnect()
     }
 
 }

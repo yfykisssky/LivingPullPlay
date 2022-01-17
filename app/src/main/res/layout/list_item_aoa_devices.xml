@@ -10,23 +10,29 @@
 
         <TextView
             android:id="@+id/nameTex"
-            android:layout_width="50dp"
+            android:layout_width="80dp"
             android:layout_height="wrap_content"
-            android:layout_gravity="center_vertical" />
+            android:layout_gravity="center_vertical"
+            android:gravity="center"
+            android:textColor="@color/black" />
 
         <TextView
             android:id="@+id/pidTex"
-            android:layout_width="50dp"
+            android:layout_width="60dp"
             android:layout_height="wrap_content"
             android:layout_gravity="center_vertical"
-            android:layout_marginStart="10dp" />
+            android:layout_marginStart="10dp"
+            android:gravity="center"
+            android:textColor="@color/black" />
 
         <TextView
             android:id="@+id/vidTex"
-            android:layout_width="50dp"
+            android:layout_width="60dp"
             android:layout_height="wrap_content"
             android:layout_gravity="center_vertical"
-            android:layout_marginStart="10dp" />
+            android:layout_marginStart="10dp"
+            android:gravity="center"
+            android:textColor="@color/black" />
     </LinearLayout>
 
     <Button
@@ -35,6 +41,7 @@
         android:layout_height="50dp"
         android:layout_alignParentEnd="true"
         android:layout_centerVertical="true"
+        android:layout_marginStart="10dp"
         android:text="conn" />
 
 </RelativeLayout>

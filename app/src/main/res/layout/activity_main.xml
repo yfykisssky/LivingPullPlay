@@ -11,14 +11,21 @@
         android:orientation="vertical">
 
         <Button
-            android:id="@+id/stateBnt"
+            android:id="@+id/socketBnt"
             android:layout_width="match_parent"
             android:layout_height="50dp"
             android:layout_margin="5dp"
-            android:text="Start" />
+            android:text="Socket" />
 
         <Button
-            android:id="@+id/exit"
+            android:id="@+id/aoaBnt"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:layout_margin="5dp"
+            android:text="Aoa" />
+
+        <Button
+            android:id="@+id/exitBnt"
             android:layout_width="match_parent"
             android:layout_height="50dp"
             android:layout_margin="5dp"

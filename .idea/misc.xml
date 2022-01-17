@@ -3,17 +3,16 @@
   <component name="DesignSurface">
     <option name="filePathToZoomLevelMap">
       <map>
+        <entry key="..\:/ProgramProjects/Android/LivingPullPlay/app/src/main/res/layout/activity_aoa_play.xml" value="0.23802083333333332" />
         <entry key="..\:/ProgramProjects/Android/LivingPullPlay/app/src/main/res/layout/activity_main.xml" value="0.2234375" />
-        <entry key="app/src/main/res/layout/activity_aoa.xml" value="0.23854166666666668" />
+        <entry key="..\:/ProgramProjects/Android/LivingPullPlay/app/src/main/res/layout/activity_socket_play.xml" value="0.23802083333333332" />
+        <entry key="..\:/ProgramProjects/Android/LivingPullPlay/app/src/main/res/layout/list_item_aoa_devices.xml" value="0.17291666666666666" />
         <entry key="app/src/main/res/layout/activity_main.xml" value="0.21354166666666666" />
-        <entry key="app/src/main/res/layout/activity_socket.xml" value="0.23854166666666668" />
-        <entry key="app/src/main/res/layout/activity_socket_play.xml" value="0.335" />
-        <entry key="app/src/main/res/layout/list_item_aoa_devices.xml" value="0.22291666666666668" />
       </map>
     </option>
   </component>
   <component name="ExternalStorageConfigurationManager" enabled="true" />
-  <component name="ProjectRootManager" version="2" languageLevel="JDK_11" project-jdk-name="1.8" project-jdk-type="JavaSDK">
+  <component name="ProjectRootManager" version="2" languageLevel="JDK_11" default="true" project-jdk-name="1.8" project-jdk-type="JavaSDK">
     <output url="file://$PROJECT_DIR$/build/classes" />
   </component>
   <component name="ProjectType">

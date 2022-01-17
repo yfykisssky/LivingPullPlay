@@ -6,14 +6,21 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.hardware.usb.*
+import android.util.Log
 import com.living.pullplay.decoder.AudioFrame
+import com.living.pullplay.decoder.DataDecodeTool
 import com.living.pullplay.decoder.VideoFrame
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.nio.ByteBuffer
+import java.util.HashMap
 
 class UsbHostTool {
 
     companion object {
         private const val USB_TIMEOUT_IN_MS = 10
-        private const val BUFFER_SIZE_IN_BYTES = 256
 
         private const val GOOGLE_AOA_PRODUCT_ID_1 = 0x2D00
         private const val GOOGLE_AOA_PRODUCT_ID_2 = 0x2D01
@@ -46,7 +53,8 @@ class UsbHostTool {
 
     private var usbInterface: UsbInterface? = null
 
-    private var readDataThread: Thread? = null
+    private var readDataJob: ReadDataJob? = null
+    private var readDataTempThread: Thread? = null
     private var writeDataThread: Thread? = null
 
     private var usbConnectListener: UsbConnectListener? = null
@@ -56,6 +64,7 @@ class UsbHostTool {
 
     interface UsbConnectListener {
         fun onConnectStartError()
+        fun onIsOneMoreDeviceInterface()
         fun onConnected()
         fun onDisConnected()
     }
@@ -131,6 +140,8 @@ class UsbHostTool {
         }
     }
 
+    //aoa从机授权成功后会切换模式
+    //pid,vid会变为google定义的id
     private fun findDevicesWithGoogleIds(): UsbDevice? {
 
         mUsbManager?.deviceList?.let { deviceList ->
@@ -146,19 +157,14 @@ class UsbHostTool {
         return null
     }
 
-    fun getNowConPidVidLists(): List<String> {
-        val arrayLists = ArrayList<String>()
-        mUsbManager?.deviceList?.forEach { device ->
-            val value = device.value
-            val pid = Integer.toHexString(value.productId)
-            val vid = Integer.toHexString(value.vendorId)
-            arrayLists.add("$pid:$vid")
-        }
-        return arrayLists
+    fun getNowConPidVidLists(): HashMap<String?, UsbDevice?>? {
+        return mUsbManager?.deviceList
     }
 
     //枚举usb设备，并修改为Accessory模式
-    fun connectToAoaDevice(conDevStr: String): Boolean {
+    fun connectToAoaDevice(pid: String, vid: String): Boolean {
+
+        val conDevStr = "$pid:$vid"
 
         mUsbManager?.deviceList?.let { deviceList ->
             for (device in deviceList.values) {
@@ -196,11 +202,11 @@ class UsbHostTool {
 
     private fun reqDevicePermission(
         device: UsbDevice,
-        reveiverStr: String
+        receiverStr: String
     ) {
         val pendingIntent = PendingIntent.getBroadcast(
             con, 0,
-            Intent(reveiverStr), 0
+            Intent(receiverStr), 0
         )
         mUsbManager?.requestPermission(device, pendingIntent)
     }
@@ -235,15 +241,23 @@ class UsbHostTool {
 
     fun toConnectAoa(device: UsbDevice) {
 
+        //多余一个interface,可能开了adb调试
+        if (device.interfaceCount != 1) {
+            usbConnectListener?.onIsOneMoreDeviceInterface()
+            return
+        }
+
         device.getInterface(0).let { interf ->
 
             usbInterface = interf
             for (i in 0 until interf.endpointCount) {
                 val endpoint = interf.getEndpoint(i)
-                /* USB_ENDPOINT_XFER_CONTROL 0 --控制传输
-                   USB_ENDPOINT_XFER_ISOC 1 --等时传输
-                   USB_ENDPOINT_XFER_BULK 2 --块传输
-                   USB_ENDPOINT_XFER_INT 3 --中断传输 */
+
+                //USB_ENDPOINT_XFER_CONTROL 0 --控制传输
+                //USB_ENDPOINT_XFER_ISOC 1 --等时传输
+                //USB_ENDPOINT_XFER_BULK 2 --块传输
+                //USB_ENDPOINT_XFER_INT 3 --中断传输
+                //aoa只有USB_ENDPOINT_XFER_BULK
                 if (endpoint.type == UsbConstants.USB_ENDPOINT_XFER_BULK) {
                     if (endpoint.direction == UsbConstants.USB_DIR_IN) {
                         endpointIn = endpoint
@@ -274,10 +288,17 @@ class UsbHostTool {
             } else {
 
                 isConnecting = true
-                readDataThread = Thread(ReadDataRunnable(connDataAoa))
-                readDataThread?.start()
+
+                val runnableTemp = ReadTempDataRunnable(connDataAoa)
+                readDataTempThread = Thread(runnableTemp)
+                readDataTempThread?.start()
+                readDataJob = ReadDataJob(runnableTemp)
+                readDataJob?.start()
+
                 writeDataThread = Thread(WriteDataRunnable(connDataAoa))
                 writeDataThread?.start()
+
+                usbConnectListener?.onConnected()
 
             }
         }
@@ -302,17 +323,65 @@ class UsbHostTool {
         }
     }
 
-    private inner class ReadDataRunnable
+    private inner class ReadTempDataRunnable
     constructor(private val conAoa: UsbDeviceConnection?) : Runnable {
 
-        //bulk transfer buffer size limited to 16K (16384)
-        private val buff = ByteArray(BUFFER_SIZE_IN_BYTES)
+        private val bytesBufferSizes = 1024
 
+        private var readBuffers: ByteBuffer? = null
+        private var readByteSizes = 0
+
+        init {
+            readByteSizes = endpointIn?.maxPacketSize ?: 0
+            readBuffers = ByteBuffer.allocate(readByteSizes * bytesBufferSizes)
+        }
+
+        fun addToByteBuffers(tempBuf: ByteArray) {
+            readBuffers?.let { bufs ->
+                synchronized(bufs) {
+                    bufs.get(tempBuf)
+                }
+            }
+        }
+
+        private fun getByteArrays(length: Int): ByteArray? {
+            readBuffers?.let { bufs ->
+                while (isConnecting) {
+
+                    synchronized(bufs) {
+                        if (bufs.position() >= length) {
+
+                            bufs.flip()
+                            val outByteArray = ByteArray(length)
+                            bufs.get(outByteArray)
+                            bufs.compact()
+                            return outByteArray
+
+                        }
+                    }
+                }
+            }
+            return null
+        }
+
+        //协程阻塞调用线程直到获取需要长度的数据
+        suspend fun getFromByteBuffers(length: Int): ByteArray? {
+            return withContext(Dispatchers.Default) {
+                getByteArrays(length)
+            }
+        }
+
+        //其他传输方式:controlTransfer,UsbRequest
+
+        //bulk transfer 最大长度 16K (16384)
+        //最小读取长度 UsbEndpoint:getMaxPacketSize,其他长度发现一直返回-1
         override fun run() {
 
             try {
 
                 while (isConnecting) {
+
+                    val buff = ByteArray(readByteSizes)
                     val ret = conAoa?.bulkTransfer(
                         endpointIn,
                         buff,
@@ -320,8 +389,9 @@ class UsbHostTool {
                         USB_TIMEOUT_IN_MS
                     ) ?: -1
                     if (ret > 0) {
-
+                        addToByteBuffers(buff)
                     }
+
                 }
 
             } catch (e: Exception) {
@@ -331,6 +401,58 @@ class UsbHostTool {
         }
     }
 
+    private inner class ReadDataJob
+    constructor(private val tempRunnable: ReadTempDataRunnable?) {
+
+        val readJob = GlobalScope.launch(Dispatchers.IO) {
+
+            try {
+
+                while (isConnecting) {
+
+                    getFromByteBuffers(DataDecodeTool.EXTRA_DATA_LENGTH)
+                        ?.let { extraData ->
+                            DataDecodeTool.deExtraData(extraData).let { rec ->
+
+                                if (!rec.isSocketAck) {
+                                    val byteData = getFromByteBuffers(rec.size)
+                                    if (rec.type) {
+                                        Log.e("READSUCCESS", "VIDEO")
+                                        val frame = VideoFrame()
+                                        frame.byteArray = byteData
+                                        frame.timestamp = rec.timeStamp
+                                        onDataReceivedCallBack?.onVideoDataRec(frame)
+                                    } else {
+                                      /*  val frame = AudioFrame()
+                                        frame.byteArray = byteData
+                                        frame.timestamp = rec.timeStamp
+                                        onDataReceivedCallBack?.onAudioDataRec(frame)*/
+                                    }
+                                }
+                            }
+                        }
+
+                }
+
+            } catch (e: Exception) {
+
+            }
+        }
+
+        private suspend fun getFromByteBuffers(length: Int): ByteArray? {
+            return tempRunnable?.getFromByteBuffers(length)
+        }
+
+        fun start() {
+            readJob.start()
+        }
+
+        fun cancel() {
+            readJob.cancel()
+        }
+    }
+
+    //心跳包,100ms
     private inner class WriteDataRunnable
     constructor(private val conAoa: UsbDeviceConnection?) : Runnable {
 
@@ -353,6 +475,7 @@ class UsbHostTool {
                     }
 
                     Thread.sleep(100)
+
                 }
             } catch (e: Exception) {
 
@@ -365,8 +488,10 @@ class UsbHostTool {
 
         isConnecting = false
 
-        readDataThread?.interrupt()
-        readDataThread?.join()
+        readDataJob?.cancel()
+
+        readDataTempThread?.interrupt()
+        readDataTempThread?.join()
 
         writeDataThread?.interrupt()
         writeDataThread?.join()
@@ -377,6 +502,8 @@ class UsbHostTool {
             connDataAoa?.releaseInterface(interf)
         }
         connDataAoa?.close()
+
+        usbConnectListener?.onDisConnected()
 
     }
 
