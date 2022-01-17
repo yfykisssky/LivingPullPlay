@@ -24,8 +24,6 @@ class SocketPlayActivity : BasePlayActivity() {
 
     private fun beginListening() {
 
-        socRecServer?.openSocket(SocketUtils.LISTENING_PORT)
-
         preparedPlay()
 
         socRecServer?.setDataReceivedCallBack(object : SocketServer.OnDataReceivedCallBack {
@@ -56,12 +54,15 @@ class SocketPlayActivity : BasePlayActivity() {
 
         })
 
+        socRecServer?.openSocket(SocketUtils.LISTENING_PORT)
+
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_socket_play)
 
+        updateTexturePlayView(surfaceView)
         initTools()
 
         socRecServer = SocketServer()

@@ -10,10 +10,8 @@ import android.util.Log
 import com.living.pullplay.decoder.AudioFrame
 import com.living.pullplay.decoder.DataDecodeTool
 import com.living.pullplay.decoder.VideoFrame
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.*
+import java.lang.Runnable
 import java.nio.ByteBuffer
 import java.util.HashMap
 
@@ -336,10 +334,10 @@ class UsbHostTool {
             readBuffers = ByteBuffer.allocate(readByteSizes * bytesBufferSizes)
         }
 
-        fun addToByteBuffers(tempBuf: ByteArray) {
+        fun addToByteBuffers(tempBuf: ByteArray, length: Int) {
             readBuffers?.let { bufs ->
                 synchronized(bufs) {
-                    bufs.get(tempBuf)
+                    bufs.put(tempBuf, 0, length)
                 }
             }
         }
@@ -349,6 +347,9 @@ class UsbHostTool {
                 while (isConnecting) {
 
                     synchronized(bufs) {
+                        //todo:传输一段时间后数据会错误，导致解析的length错误，可能数据丢失或发送异常导致
+                        //todo:后续进行调试或增加CRC检验
+                        Log.e("XXXXX",bufs.position().toString()+":"+length)
                         if (bufs.position() >= length) {
 
                             bufs.flip()
@@ -359,14 +360,15 @@ class UsbHostTool {
 
                         }
                     }
+
                 }
             }
             return null
         }
 
         //协程阻塞调用线程直到获取需要长度的数据
-        suspend fun getFromByteBuffers(length: Int): ByteArray? {
-            return withContext(Dispatchers.Default) {
+        fun getFromByteBuffers(length: Int): ByteArray? {
+            return runBlocking {
                 getByteArrays(length)
             }
         }
@@ -389,7 +391,7 @@ class UsbHostTool {
                         USB_TIMEOUT_IN_MS
                     ) ?: -1
                     if (ret > 0) {
-                        addToByteBuffers(buff)
+                        addToByteBuffers(buff, ret)
                     }
 
                 }
@@ -412,22 +414,25 @@ class UsbHostTool {
 
                     getFromByteBuffers(DataDecodeTool.EXTRA_DATA_LENGTH)
                         ?.let { extraData ->
+
                             DataDecodeTool.deExtraData(extraData).let { rec ->
 
                                 if (!rec.isSocketAck) {
+
                                     val byteData = getFromByteBuffers(rec.size)
+
                                     if (rec.type) {
-                                        Log.e("READSUCCESS", "VIDEO")
                                         val frame = VideoFrame()
                                         frame.byteArray = byteData
                                         frame.timestamp = rec.timeStamp
                                         onDataReceivedCallBack?.onVideoDataRec(frame)
                                     } else {
-                                      /*  val frame = AudioFrame()
+                                        val frame = AudioFrame()
                                         frame.byteArray = byteData
                                         frame.timestamp = rec.timeStamp
-                                        onDataReceivedCallBack?.onAudioDataRec(frame)*/
+                                        onDataReceivedCallBack?.onAudioDataRec(frame)
                                     }
+
                                 }
                             }
                         }
@@ -439,7 +444,7 @@ class UsbHostTool {
             }
         }
 
-        private suspend fun getFromByteBuffers(length: Int): ByteArray? {
+        private fun getFromByteBuffers(length: Int): ByteArray? {
             return tempRunnable?.getFromByteBuffers(length)
         }
 

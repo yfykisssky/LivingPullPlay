@@ -33,6 +33,8 @@ class AoaPlayActivity : BasePlayActivity() {
         setContentView(R.layout.activity_aoa_play)
 
         initView()
+
+        updateTexturePlayView(surfaceView)
         initTools()
 
         usbHostTool = UsbHostTool()

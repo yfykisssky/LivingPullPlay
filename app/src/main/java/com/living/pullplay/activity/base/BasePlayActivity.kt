@@ -19,6 +19,10 @@ open class BasePlayActivity : Activity() {
 
     private var audioStmPlayer: AudioStmPlayer? = null
 
+    protected fun updateTexturePlayView(surfaceRenderView: TextureView?) {
+        this.surfaceRenderView = surfaceRenderView
+    }
+
     protected fun initTools() {
         videoDecoder = VideoDecoder()
         audioDecoder = AudioSoftDecoder()
